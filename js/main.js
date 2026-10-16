@@ -11,10 +11,15 @@ $(document).ready(function() {
     var redirecting = false;
     var lastPing = 0;
 	var refreshInProgress = false;
+	var pendingRefreshCallbacks = [];
 
-   	var WARNING_AFTER = 25 * 60 * 1000; // Warn after 25 minutes
+   	var WARNING_AFTER = 25 * 60 * 1000; // 25 minutes
 	var LOGOUT_AFTER = 5 * 60 * 1000;   // 5-minute countdown
-	var PING_INTERVAL = 15 * 1000;  // Check every 15 seconds, if needed
+	// var PING_INTERVAL = 15 * 1000;  // Check every 15 seconds, if needed
+
+	var WARNING_AFTER = 60 * 1000; // 1 minute
+	var LOGOUT_AFTER = 60 * 1000;  // 1-minute countdown
+	var PING_INTERVAL = 15 * 1000; // Server refresh interval
 
 
     // Adjust if your application URL is different.
@@ -80,19 +85,29 @@ $(document).ready(function() {
 		});
 	}
 
+
 	function refreshSession(callback, reason) {
 		reason = reason || "Manual refresh";
 
+		// If a request is already running, wait for its result.
 		if (refreshInProgress) {
-			console.log("[Session] Refresh skipped; request already in progress.");
+			console.log("[Session] Refresh already in progress; waiting.");
 
 			if (callback) {
-				callback(false);
+				pendingRefreshCallbacks.push(callback);
 			}
+
 			return;
 		}
 
 		refreshInProgress = true;
+
+		// Register the callback for this request.
+		pendingRefreshCallbacks = [];
+
+		if (callback) {
+			pendingRefreshCallbacks.push(callback);
+		}
 
 		console.log("[Session] " + reason + ": sending refresh request...");
 		console.log("[Session] Browser time:", new Date());
@@ -107,27 +122,41 @@ $(document).ready(function() {
 			success: function(response) {
 				console.log("[Session] Refresh response:", response);
 
-				if (response && response.status === "ok") {
-					console.log("[Session] Refresh successful.");
+				var valid = response && response.status === "ok";
 
-					if (callback) {
-						callback(true);
-					}
+				if (valid) {
+					console.log("[Session] Refresh successful.");
 				} else {
 					console.error("[Session] Unexpected response:", response);
-
-					if (callback) {
-						callback(false);
-					}
 				}
+
+				var callbacks = pendingRefreshCallbacks.slice(0);
+				pendingRefreshCallbacks = [];
+
+				$.each(callbacks, function(i, fn) {
+					fn(valid);
+				});
 			},
 
 			error: function(xhr, status, error) {
-				console.error("[Session] Refresh failed:", xhr.status, xhr.responseText);
+				console.error(
+					"[Session] Refresh failed:",
+					xhr.status,
+					xhr.responseText
+				);
 
-				if (callback) {
-					callback(false);
+				var valid = false;
+
+				var callbacks = pendingRefreshCallbacks.slice(0);
+				pendingRefreshCallbacks = [];
+
+				if (xhr.status === 401) {
+					redirectToLogin();
 				}
+
+				$.each(callbacks, function(i, fn) {
+					fn(valid);
+				});
 			},
 
 			complete: function() {
@@ -135,6 +164,7 @@ $(document).ready(function() {
 			}
 		});
 	}
+
 
 
     function closeWarning() {

@@ -1,4 +1,5 @@
 <?php
+	// ini_set("display_errors","on");
 	session_start();
 	include("handlers/_generics.php");
 	require_once("handlers/session.guard.php");
