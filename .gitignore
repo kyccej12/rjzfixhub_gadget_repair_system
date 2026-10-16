@@ -1,0 +1,27 @@
+# ======================
+# PHP & General Back-end
+# ======================
+*.log
+*.cache
+*.env
+.env.*
+.phpunit.result.cache
+
+# ======================
+# SQL Files
+# ======================
+*.sql
+*.sqlite
+*.db
+
+# Optional: If you don’t want to version control raw DB exports
+
+# ======================
+# Custom folders (edit as needed)
+# ======================
+/lib/
+/ui-assets/
+/handlers/
+/images/
+/tmp/
+/style/
