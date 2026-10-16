@@ -237,6 +237,19 @@ function openReceivePayment() {
 					'</div>' +
 				'</div>' +
 
+                '<div id="payPreviewRow" style="' +
+                    'display:none;' +
+                    'margin-bottom:12px;' +
+                    'padding:10px;' +
+                    'border:1px solid #ddd;' +
+                    'border-radius:4px;' +
+                    'background:#fafafa;' +
+                    'box-sizing:border-box;' +
+                '">' +
+                    '<b>Balance After Payment:</b>' +
+                    '<strong id="payPreviewBalance" style="float:right;">0.00</strong>' +
+                    '<div style="clear:both;"></div>' +
+                '</div>' +
 				'<div class="jo-payment-form">' +
 
 					'<label for="payType"><b>Payment Type</b></label>' +
@@ -283,8 +296,14 @@ function openReceivePayment() {
 						'placeholder="Enter payment remarks..."></textarea>' +
 
 				'</div>' +
+                '<div id="payMessage" style="' +
+                    'color:#b00020;' +
+                    'margin-top:10px;' +
+                    'font-weight:bold;' +
+                '"></div>' +
 			'</div>'
 		);
+        $dialog = $p("#joPaymentDialog");
 	}
 
     function money(value) {
@@ -295,34 +314,32 @@ function openReceivePayment() {
         return number.toFixed(2);
     }
 
-    function refreshPreview() {
-        var balance = parseFloat($dialog.data("balance")) || 0;
-        var amount = parseFloat($dialog.find("#payAmount").val()) || 0;
-        var preview = balance - amount;
+    
+        function refreshPreview() {
+            var balance = parseFloat($dialog.data("balance")) || 0;
+            var amount = parseFloat($dialog.find("#payAmount").val()) || 0;
 
-        if (preview < 0) {
-            preview = 0;
+            var preview = balance - amount;
+
+            if (preview < 0) {
+                preview = 0;
+            }
+
+            // Keep the original remaining balance visible.
+            $dialog.find("#payBalance").text(money(balance));
+
+            // Update the existing preview instead of creating new HTML.
+            $dialog.find("#payPreviewBalance").text(money(preview));
+
+            if (amount > 0) {
+                $dialog.find("#payPreviewRow").show();
+            } else {
+                $dialog.find("#payPreviewRow").hide();
+            }
         }
 
-        $dialog.find("#payBalance").text(money(balance));
-        $dialog.find("#payPreviewBalance").remove();
 
-        // $dialog.find("#payBalance").closest("tr").after(
-        //     '<tr id="payPreviewBalance">' +
-        //     '<td>Balance After Payment:</td>' +
-        //     '<td><strong>' + money(preview) + '</strong></td></tr>'
-        // );
-
-		$dialog.find("#payBalance").closest("div").after(
-			'<hr style="border:0;border-top:1px solid #ddd;">' +
-				'<div style="margin-bottom:8px;">' +
-					'<b>Balance After Payment:</b>' +
-					'<span id="payPreviewBalance" style="float:right;"><strong>' + money(preview) + '</strong></span>' +
-				'</div>'
-		);
-    }
-
-    $p.ajax({
+        $p.ajax({
         url: "jo.datacontrol.php",
         type: "POST",
         dataType: "json",
@@ -448,6 +465,7 @@ function openReceivePayment() {
                                     parent.sendErrorMessage(
                                         "Payment recorded successfully."
                                     );
+                                    parent.viewJO(joNo);
                                 },
                                 error: function(xhr) {
                                     console.error(

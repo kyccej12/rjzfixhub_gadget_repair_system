@@ -1,5 +1,6 @@
 <?php	
 	session_start();
+
 	// ini_set("display_errors","on");
 	require_once("handlers/session.guard.php");
 	include("handlers/_generics.php");
@@ -75,7 +76,8 @@ function setSOClickers($status, $jo_no, $urights) {
 						<span class="ui-icon ui-icon-disk"></span>Save Data
 					</button>
 				';
-
+			break;
+			case "Completed":
 				if ($urights == "admin" && $jo_no != '') {
 					$headerControls .= '
 						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'cancel\');">
@@ -83,7 +85,16 @@ function setSOClickers($status, $jo_no, $urights) {
 						</button>
 					';
 				}
-				break;
+				$headerControls .= '
+						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.printJO(\'' . htmlspecialchars($jo_no, ENT_QUOTES, 'UTF-8') . '\', 0);">
+							<span class="ui-icon ui-icon-print"></span>Print Job Order
+						</button>
+
+						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'viewJOComment\');">
+							<span class="ui-icon ui-icon-print"></span>View Comment
+						</button>
+					';
+			break;
 		}
 
 		echo $headerControls;

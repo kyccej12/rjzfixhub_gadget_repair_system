@@ -486,7 +486,7 @@ $html = '
 <div style="margin-bottom:3px;"></div>
 
 
-<div class="section">PARTS / ITEMS AND COST SUMMARY</div>
+<div class="section">PARTS & SERVICE COST SUMMARY</div>
 <table width="100%" cellpadding="0" cellspacing="0" class="items">
 <thead>
 <tr>

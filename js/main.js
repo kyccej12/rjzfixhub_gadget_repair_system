@@ -15,11 +15,11 @@ $(document).ready(function() {
 
    	var WARNING_AFTER = 25 * 60 * 1000; // 25 minutes
 	var LOGOUT_AFTER = 5 * 60 * 1000;   // 5-minute countdown
-	// var PING_INTERVAL = 15 * 1000;  // Check every 15 seconds, if needed
+	var PING_INTERVAL = 15 * 1000;  // Check every 15 seconds, if needed
 
-	var WARNING_AFTER = 60 * 1000; // 1 minute
-	var LOGOUT_AFTER = 60 * 1000;  // 1-minute countdown
-	var PING_INTERVAL = 15 * 1000; // Server refresh interval
+	// var WARNING_AFTER = 60 * 1000; // 1 minute
+	// var LOGOUT_AFTER = 60 * 1000;  // 1-minute countdown
+	// var PING_INTERVAL = 15 * 1000; // Server refresh interval
 
 
     // Adjust if your application URL is different.

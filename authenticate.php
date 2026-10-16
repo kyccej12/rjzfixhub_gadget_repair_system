@@ -144,6 +144,7 @@
 
 			$_SESSION['userid'] = $uid;
 			$_SESSION['authkey'] = $skey;
+			$_SESSION['utype'] = $utype;
 			$_SESSION['branchid'] = $branch;
 			$_SESSION['branchname'] = $row['branch_name'];
 			$_SESSION['company'] = $row['company'];
