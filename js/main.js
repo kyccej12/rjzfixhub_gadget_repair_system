@@ -324,6 +324,40 @@ $(document).ajaxError(function(event, xhr, settings, error) {
     }
 });
 
+
+function closeMainMenu() {
+    var $menu = $("#mainMenu");
+
+    if ($menu.length &&
+        $menu.hasClass("ui-dialog-content") &&
+        $menu.dialog("isOpen")) {
+        $menu.dialog("close");
+    }
+}
+
+function closeAllERPDialogs() {
+    var dialogIds = [
+        "jodetails",
+        "jolist",
+        "serviceDetails",
+        "serviceslist",
+        "joPaymentDialog",
+        "joCommentDialog",
+        "itemEntry"
+    ];
+
+    $.each(dialogIds, function(index, id) {
+        var $dialog = $("#" + id);
+
+        if ($dialog.length &&
+            $dialog.hasClass("ui-dialog-content") &&
+            $dialog.dialog("isOpen")) {
+            $dialog.dialog("close");
+        }
+    });
+}
+
+
 var monthNames = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
@@ -388,11 +422,28 @@ function showLoaderMessage() {
 }
 
 function showMenu() {
-	$("#mainMenu").dialog({show: 'fade', title: "Main Menu", width: 1124, resizable: false }).dialogExtend({
-		"closable" : true,
-		"maximizable" : false,
-		"minimizable" : true
-	});
+    // Close all other workspace dialogs.
+    closeAllERPDialogs();
+
+    var $menu = $("#mainMenu");
+
+    if (!$menu.hasClass("ui-dialog-content")) {
+        $menu.dialog({
+            autoOpen: false,
+            show: "fade",
+			hide: "fade",
+			duration: 400,
+            title: "Main Menu",
+            width: 1124,
+            resizable: false
+        }).dialogExtend({
+            closable: true,
+            maximizable: false,
+            minimizable: true
+        });
+    }
+
+    $menu.dialog("open");
 }
 
 function closeDialog(frame) {
@@ -402,9 +453,10 @@ function closeDialog(frame) {
 /* JO */
 
 function showJO() {
+	closeMainMenu();
 	var txtHTML = "<iframe id='frmcust' frameborder=0 width='100%' height='100%' src='jo.list.php?sid="+Math.random()+"'></iframe>";
 	$("#jolist").html(txtHTML);
-	$("#jolist").dialog({title: "Job Order Summary", width: xWidth, height: 600,resizable: false, show: 'fade', modal: true }).dialogExtend({
+	$("#jolist").dialog({title: "Job Order Summary", width: xWidth, height: 600,resizable: false, show: 'fade', modal: false }).dialogExtend({
 		"closable" : true,
 	    "maximizable" : false,
 	    "minimizable" : true
@@ -430,6 +482,7 @@ function viewJO(jo_no) {
 		width: 1120,
 		height: 640,
 		resizable: false,
+		show: 'fade',
 		modal: true,
 		open: function() {
 			// Create a separate header for the buttons
@@ -514,6 +567,31 @@ function printJO(jo_no, rePrint) {
     // Use the parent's jQuery UI dialog
     $printDialog.dialog("open");
 }
+
+/* Service */
+
+function showServices() {
+	closeMainMenu();
+	var txtHTML = "<iframe id='frmcust' frameborder=0 width='100%' height='100%' src='services/services.php?sid="+Math.random()+"'></iframe>";
+	$("#serviceslist").html(txtHTML);
+	$("#serviceslist").dialog({title: "List of Services", width: xWidth, height: 500,resizable: false, show: 'fade', modal: false }).dialogExtend({
+		"closable" : true,
+	    "maximizable" : true,
+	    "minimizable" : true
+	});
+}
+
+function showServiceInfo(id) {
+	var txtHTML = "<iframe id='frmcust' frameborder=0 width='100%' height='100%' src='services/service.details.php?id="+id+"&sid="+Math.random()+"'></iframe>";
+	$("#itemdetails").html(txtHTML);
+	$("#itemdetails").dialog({title: "Service Details", width: 1120, height: 440, resizable: false, show: 'fade', modal: true }).dialogExtend({
+		"closable" : true,
+		"maximizable" : false,
+		"minimizable" : true
+	});
+}
+
+/* End of Service */
 
 /* Sales */
 function showOptions() {

@@ -1,13 +1,12 @@
 <?php
 session_start();
 
-require_once("handlers/session.guard.php");
 require_once("handlers/_generics.php");
 
 $o = new _init;
 
 if (!isset($_SESSION['authkey']) || empty($_SESSION['authkey'])) {
-    header("Location: login/index.php?expired=1");
+    header("Location: login/index.php?exception=1");
     exit;
 }
 
@@ -39,7 +38,7 @@ if ($o->exception != 0) {
 		<td colspan=2 height=37 style="padding-left: 3px;">
 			<a href="#" onclick="javascript: showMenu();"><img src="images/icons/button-menu.png" width=24 height=24 align=absmiddle></a>
 		</td>
-		<td align=right style="padding-right: 10px;"><img src="images/icons/user.png" align=absmiddle border=0 width=18 height=18 /><span style="font-size: 11px; font-weight: bold; color: #ffffff;">&nbsp;<?php $o->getUname($_SESSION['userid']); ?> @ <?php $o->getBranchName($_SESSION['branchid']); ?>&nbsp;&nbsp;&nbsp;|</span>&nbsp;<a href="logout.php" style="font-size: 12px; font-weight: bold; color: #ffffff; text-decoration: none;" title="Click to Logout"><img src="images/button-logout.png" align=absmiddle border=0 width=24 height=24 />Logout</a></td>
+		<td align=right style="padding-right: 10px;"><img src="images/icons/user.png" align=absmiddle border=0 width=18 height=18 /><span style="font-size: 11px; font-weight: bold; color: #ffffff;">&nbsp;<?php $o->getUname($_SESSION['userid']); ?>@<?php $o->getBranchName($_SESSION['branchid']); ?>&nbsp;&nbsp;&nbsp;|</span>&nbsp;<a href="logout.php" style="font-size: 12px; font-weight: bold; color: #ffffff; text-decoration: none;" title="Click to Logout"><img src="images/button-logout.png" align=absmiddle border=0 width=24 height=24 />Logout</a></td>
 	</tr>
 	<tr height=90%>
 		<td colspan=3>
@@ -105,6 +104,7 @@ if ($o->exception != 0) {
 <div id="jolist" style="display: none;"></div>
 <div id="jodetails" style="display: none;"></div>
 <div id="joprint" style="display: none;"></div>
+<div id="serviceslist" style="display: none;"></div>
 
 <?php for($rpt = 1; $rpt <= 10; $rpt++) { echo "<div id=\"report$rpt\" style=\"display: none;\"></div>"; } ?>
 

@@ -1,7 +1,6 @@
 <?php
 ini_set("display_errors","on");
     session_start();
-    require_once("handlers/session.guard.php");
 	require_once 'handlers/_generics.php';
 	$con = new _init;
     $bid = $_SESSION['branchid'];
@@ -137,8 +136,7 @@ function updateAmount($jo_no, $labor = null) {
                             visual_battery = '$_POST[visual_battery]', 
                             visual_ram = '$_POST[visual_ram]', 
                             visual_wifi = '$_POST[visual_wifi]', 
-                            remarks = '".$con->escapeString(htmlentities($_POST['remarks']))."', 
-                            action_taken = '".$con->escapeString(htmlentities($_POST['action_taken']))."', 
+                            remarks = '".$con->escapeString(htmlentities($_POST['remarks']))."',
                             updated_by = '$_SESSION[userid]' , 
                             updated_on = now() 
                             where jo_no = '$_POST[jo_no]';";
@@ -152,7 +150,7 @@ function updateAmount($jo_no, $labor = null) {
                             unit_storage, unit_charger, unit_category, unit_processor, unit_ram, unit_motherboard,
                             visual_lcd, visual_usb, visual_bitlocker, visual_charger, visual_storage, visual_screws,
                             visual_camera, visual_touchpad, visual_charging, visual_speaker, visual_hdmi, visual_keyboard,
-                            visual_bios, visual_battery, visual_ram, visual_wifi, `status`, remarks, action_taken,
+                            visual_bios, visual_battery, visual_ram, visual_wifi, `status`, remarks,
                             trace_no,
                             created_by,
                             created_on) VALUES (
@@ -162,7 +160,7 @@ function updateAmount($jo_no, $labor = null) {
                             '$_POST[unit_storage]', '$_POST[unit_charger]','$_POST[unit_category]','$_POST[unit_processor]','$_POST[unit_ram]','$_POST[unit_motherboard]',
                             '$_POST[visual_lcd]', '$_POST[visual_usb]','$_POST[visual_bitlocker]','$_POST[visual_charger]','$_POST[visual_storage]','$_POST[visual_screws]',
                             '$_POST[visual_camera]', '$_POST[visual_touchpad]','$_POST[visual_charging]','$_POST[visual_speaker]','$_POST[visual_hdmi]','$_POST[visual_keyboard]',
-                            '$_POST[visual_bios]', '$_POST[visual_battery]','$_POST[visual_ram]','$_POST[visual_wifi]','Active','".$con->escapeString(htmlentities($_POST['remarks']))."', '".$con->escapeString(htmlentities($_POST['action_taken']))."', 
+                            '$_POST[visual_bios]', '$_POST[visual_battery]','$_POST[visual_ram]','$_POST[visual_wifi]','Active','".$con->escapeString(htmlentities($_POST['remarks']))."', 
                             '$_POST[trace_no]', 
                             '$_SESSION[userid]', 
                             now());";

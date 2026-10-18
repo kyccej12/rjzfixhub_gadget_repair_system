@@ -2,7 +2,6 @@
 	session_start();
 
 	// ini_set("display_errors","on");
-	require_once("handlers/session.guard.php");
 	include("handlers/_generics.php");
 	
 	$mydb = new _init;
@@ -45,7 +44,7 @@ function setSOClickers($status, $jo_no, $urights) {
 						</button>
 
 						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'viewJOComment\');">
-							<span class="ui-icon ui-icon-print"></span>View Comment
+							<span class="ui-icon ui-icon-comment"></span>View Comment
 						</button>
 
 						 <button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'openReceivePayment\');">
@@ -91,7 +90,7 @@ function setSOClickers($status, $jo_no, $urights) {
 						</button>
 
 						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'viewJOComment\');">
-							<span class="ui-icon ui-icon-print"></span>View Comment
+							<span class="ui-icon ui-icon-comment"></span>View Comment
 						</button>
 					';
 			break;
@@ -208,7 +207,7 @@ function setSOClickers($status, $jo_no, $urights) {
 				"#visual_lcd, #visual_usb, #visual_bitlocker, #visual_charger, " +
 				"#visual_storage, #visual_screws, #visual_camera, #visual_touchpad, " +
 				"#visual_charging, #visual_speaker, #visual_hdmi, #visual_bios, " +
-				"#visual_keyboard, #visual_battery, #visual_ram, #visual_wifi, #laborTotal, #remarks, #action_taken")
+				"#visual_keyboard, #visual_battery, #visual_ram, #visual_wifi, #laborTotal, #remarks")
 				.on("change", function() {
 					saveJOHeader();
 			});
@@ -248,6 +247,35 @@ function setSOClickers($status, $jo_no, $urights) {
 					{ "targets": [0], "visible": false }
 				]
 			});
+
+			$('#services').dataTable({
+				"ajax": {
+					"url": "jo.datacontrol.php",
+					"data": { trace_no: "<?php echo $traceNo; ?>", mod: "retrieveServices", sid: Math.random() },
+					"method": "POST"	
+				},
+				"scrollY":  "150",
+				"select":	'single',
+				"pagingType": "full_numbers",
+				"bProcessing": true,
+				"searching": false,
+				"paging": false,
+				"info": false,
+				
+				"aoColumns": [
+					{ mData: 'id' },
+					{ mData: 'code' },
+					{ mData: 'brand' },
+					{ mData: 'description' },
+					{ mData: 'qty', render: $.fn.dataTable.render.number(',', '.', 2, '')},
+					{ mData: 'amount', render: $.fn.dataTable.render.number(',', '.', 2, '') },
+					{ mData: 'amount_due', render: $.fn.dataTable.render.number(',', '.', 2, '') }
+				],
+				"aoColumnDefs": [
+					{ className: "dt-body-center", "targets": [1,3,4,5,6]},
+					{ "targets": [0], "visible": false }
+				]
+			});
 			
 			<?php if($status == 'Completed' || $status == 'Cancelled') {
 				echo "$(\"#xform :input:not([name=setActive], [name=setPrint], [name=setRecycle])\").prop('disabled',true);";
@@ -260,6 +288,10 @@ function setSOClickers($status, $jo_no, $urights) {
 
 		function redrawDataTable() {
 			$('#details').DataTable().ajax.url("jo.datacontrol.php?mod=retrieve&trace_no=<?php echo $traceNo; ?>").load();
+		}
+
+		function redrawDataTable() {
+			$('#services').DataTable().ajax.url("jo.datacontrol.php?mod=retrieveServices&trace_no=<?php echo $traceNo; ?>").load();
 		}
 
 	</script>
@@ -756,8 +788,34 @@ function setSOClickers($status, $jo_no, $urights) {
 				</td>
 			</tr>
 		</table>
-
+		<table width=100% style="text-align: center; padding: 5px;" class="section">
+			<tr>
+				<td height=2></td>
+				<td align=center class="bareBold" style="font-weight:bold;" valign=top>PARTS / ITEMS USED</td>
+				<td <height=2></td>
+			</tr>
+		</table>
 		<table class="cell-border" id="details">
+			<thead>
+				<tr>
+					<th></th>
+					<th width=12%>ITEM CODE</th>
+					<th width=10%>BRAND</th>
+					<th >DESCRIPTION</th>
+					<th width=10%>QTY</th>
+					<th width=10%>PRICE</th>
+					<th width=10%>AMT. DUE</th>
+				</tr>
+			</thead>
+		</table>
+		<table width=100% style="text-align: center; padding: 5px;" class="section">
+			<tr>
+				<td height=2></td>
+				<td align=center class="bareBold" style="font-weight:bold;" valign=top>SERVICE/S OFFER</td>
+				<td <height=2></td>
+			</tr>
+		</table>
+		<table class="cell-border" id="services">
 			<thead>
 				<tr>
 					<th></th>
@@ -775,9 +833,7 @@ function setSOClickers($status, $jo_no, $urights) {
 			<tr>
 				<td width=50%>
 					Unit History: <br/>
-					<textarea rows=4 type="text" id="remarks" style="width:90%;"><?php echo $res['remarks']; ?></textarea> <br />
-					Action Taken: <br/>
-					<textarea rows=4 type="text" id="action_taken" style="width:90%;"><?php echo $res['action_taken']; ?></textarea> <br />
+					<textarea rows=4 type="text" id="remarks" style="width:90%;"><?php echo $res['remarks']; ?></textarea>
 				</td>
 				<td align=right width=50% valign=top>
 					Total Parts Cost : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type=text name="pgrandTotal" id="pgrandTotal" value="<?php echo number_format($res['pamount'],2); ?>" readonly> <br />
