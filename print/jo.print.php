@@ -56,6 +56,8 @@ if (empty($header) || empty($header['jo_no'])) {
 
 /* Fetch parts/items using the trace number stored in the header. */
 $traceNo = isset($header['trace_no']) ? addslashes($header['trace_no']) : '';
+
+/* Initialize an empty array to hold the parts/items. */
 $items = array();
 
 if ($traceNo !== '') {
@@ -64,7 +66,7 @@ if ($traceNo !== '') {
     $sql = "
         SELECT *
         FROM jo_details
-        WHERE trace_no = '{$safeTraceNo}'
+        WHERE trace_no = '{$safeTraceNo}' and branch = '{$branchSql}' and jo_no = '{$joNoSql}'
     ";
 
     $result = myDB::dbquery($sql);
@@ -80,6 +82,35 @@ if ($traceNo !== '') {
     }
 
     $result->free();
+}
+/* END: Fetch parts/items using the trace number stored in the header. */
+
+$service = array();
+
+if ($traceNo !== '') {
+    $safeTraceNoservice = myDB::escapeString($traceNo);
+
+
+
+    $sql = "
+        SELECT *
+        FROM jo_services
+        WHERE trace_no = '{$safeTraceNoservice}' and branch = '{$branchSql}' and jo_no = '{$joNoSql}'
+    ";
+
+    $resultService = myDB::dbquery($sql);
+
+    if ($resultService === false) {
+        die("Error retrieving JO service: " . mysqli_error(
+            myConnector::getInstance()->getConnection()
+        ));
+    }
+
+    while ($row = $resultService->fetch_assoc()) {
+        $service[] = $row;
+    }
+
+    $resultService->free();
 }
 
 function jo_h($value) {
@@ -152,7 +183,7 @@ if ($grandTotal <= 0) {
 }
 
 
-$mpdf = new mPDF('utf-8', 'FOLIO-P', 0, 'dejavusans', 8, 8, 8, 8, 6, 6);
+$mpdf = new mPDF('utf-8', 'FOLIO-P', 0, 'dejavusans', 6, 6, 6, 6, 6, 6);
 $mpdf->SetTitle('Job Order ' . $joNo);
 $mpdf->SetAuthor('RJZ Fix Hub');
 $mpdf->SetDisplayMode('fullpage');
@@ -205,7 +236,8 @@ $html = '
         background: #eaf2f7;
         color: #12304a;
         font-weight: bold;
-        font-size: 7pt;
+        font-size: 6.5pt;
+        padding: 3px 3px;
         border-left: 2px solid #17a2a4;
     }
 
@@ -221,7 +253,7 @@ $html = '
     }
 
     .value {
-        font-size: 8pt;
+        font-size: 7pt;
         font-weight: bold;
         color: #243247;
     }
@@ -379,7 +411,7 @@ $html = '
         <div class="document-title">JOB ORDER</div>
         <barcode class="doc-subtitle" size=0.8 code="'.$bcode.'" type="C128A">
         <br />
-        <table width="100%" cellpadding="5" cellspacing="0">
+        <table width="100%" cellpadding="4" cellspacing="0">
             <tr><td width="40%" style="background:#eaf2f7;"><b>JO No.</b></td><td width="55%" style="border:1px solid #d7e0e8;"><b>' . $joReference . '</b></td></tr>
             <tr><td style="background:#eaf2f7;"><b>Date</b></td><td style="border:1px solid #d7e0e8;">' . jo_h($joDate) . '</td></tr>
             <tr><td style="background:#eaf2f7;"><b>Status</b></td><td style="border:1px solid #d7e0e8;">' . jo_h($status) . '</td></tr>
@@ -392,19 +424,20 @@ $html = '
 <div class="section">CUSTOMER DETAILS</div>
 <table width="100%" cellpadding="7" cellspacing="0" class="panel">
 <tr>
-    <td width="55%">
+    <td width="45%">
         <div class="label">CUSTOMER NAME</div><div class="value">' . jo_h($customerName) . '</div><br />
         <div class="label">ADDRESS</div><div>' . jo_h($customerAddress ?: '—') . '</div>
     </td>
-    <td width="45%">
+    <td width="30%">
         <div class="label">CUSTOMER ID</div><div class="value">' . jo_h($customerCode ?: '—') . '</div><br />
         <div class="label">CONTACT NUMBER</div><div class="value">' . jo_h($customerContact ?: '—') . '</div><br />
+    </td>
+    <td width="25%">
         <div class="label">EMAIL</div><div>' . jo_h($customerEmail ?: '—') . '</div>
     </td>
 </tr>
 </table>
 <div style="margin-bottom:3px;"></div>
-
 <div class="section">UNIT / DEVICE DETAILS</div>
 <table width="100%" cellpadding="6" cellspacing="0" class="panel">
 <tr>
@@ -485,13 +518,12 @@ $html = '
 <div style="margin-bottom:3px;"></div>
 
 
-<div class="section">PARTS & SERVICE COST SUMMARY</div>
+<div class="section">PARTS COST SUMMARY</div>
 <table width="100%" cellpadding="0" cellspacing="0" class="items">
 <thead>
 <tr>
     <th width="8%">#</th>
     <th width="19%">ITEM CODE</th>
-    <th width="18%">BRAND</th>
     <th width="31%">DESCRIPTION</th>
     <th width="8%">QTY</th>
     <th width="16%">AMOUNT</th>
@@ -504,14 +536,12 @@ if (is_array($items) && count($items) > 0) {
     $line = 1;
     foreach ($items as $item) {
         $code = jo_field($item, 'code', '');
-        $brand = jo_field($item, 'brand', '');
         $description = jo_field($item, 'description', '');
         $qty = (float)jo_field($item, 'qty', 0);
         $amount = (float)jo_field($item, 'amount_due', jo_field($item, 'amount', 0));
         $html .= '<tr>
             <td align="center">' . $line++ . '</td>
             <td>' . jo_h($code) . '</td>
-            <td>' . jo_h($brand) . '</td>
             <td>' . jo_h($description) . '</td>
             <td align="right">' . jo_h(rtrim(rtrim(number_format($qty, 2, '.', ','), '0'), '.')) . '</td>
             <td align="right">' . jo_money($amount) . '</td>
@@ -519,6 +549,46 @@ if (is_array($items) && count($items) > 0) {
     }
 } else {
     $html .= '<tr><td colspan="6" align="center" class="muted">No parts or items recorded for this Job Order.</td></tr>';
+}
+
+$html .= '
+</tbody>
+</table>
+<div style="margin-bottom:3px;"></div>
+<div class="section">SERVICE COST SUMMARY</div>
+<table width="100%" cellpadding="0" cellspacing="0" class="items">
+<thead>
+<tr>
+    <th width="8%">#</th>
+    <th width="19%">ITEM CODE</th>
+    <th width="31%">DESCRIPTION</th>
+    <th width="8%">QTY</th>
+    <th width="16%">PRICE</th>
+    <th width="16%">AMOUNT DUE</th>
+</tr>
+</thead>
+<tbody>
+';
+
+if (is_array($service) && count($service) > 0) {
+    $line = 1;
+    foreach ($service as $itemService) {
+        $code = jo_field($itemService, 'item_code', '');
+        $description = jo_field($itemService, 'description', '');
+        $qty = (float)jo_field($itemService, 'qty', 0);
+        $amount = (float)jo_field($itemService, 'amount', jo_field($itemService, 'amount', 0));
+        $amountdue = (float)jo_field($itemService, 'amount_due', jo_field($itemService, 'amount_due', 0));
+        $html .= '<tr>
+            <td align="center">' . $line++ . '</td>
+            <td>' . jo_h($code) . '</td>
+            <td>' . jo_h($description) . '</td>
+            <td align="right">' . jo_h(rtrim(rtrim(number_format($qty, 2, '.', ','), '0'), '.')) . '</td>
+            <td align="right">' . jo_money($amount) . '</td>
+            <td align="right">' . jo_money($amountdue) . '</td>
+        </tr>';
+    }
+} else {
+    $html .= '<tr><td colspan="6" align="center" class="muted">No service recorded for this Job Order.</td></tr>';
 }
 
 $html .= '
@@ -532,9 +602,6 @@ $html .= '
                 <div class="section">UNIT HISTORY / CUSTOMER CONCERN</div>
                 <div class="panel" style="min-height:55px;">' . nl2br(jo_h($remarks ?: 'No history recorded.')) . '</div>
                 <br/>                
-                <div class="section">ACTION TAKEN</div>
-                <div class="panel" style="min-height:55px;">' . nl2br(jo_h($action_taken ?: 'No actions recorded.')) . '</div>
-
             </td>
             <td width="48%" valign="top">
                 <table width="100%" cellpadding="0" cellspacing="0">

@@ -841,7 +841,7 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             ));
 
         break;
-
+        
 
 
         case "saveJOComment":
