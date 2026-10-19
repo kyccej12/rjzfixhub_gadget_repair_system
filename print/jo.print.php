@@ -206,7 +206,6 @@ $html = '
         color: #12304a;
         font-weight: bold;
         font-size: 7pt;
-        padding: 4px 5px;
         border-left: 2px solid #17a2a4;
     }
 

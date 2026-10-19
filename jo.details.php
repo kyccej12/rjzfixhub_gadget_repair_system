@@ -219,61 +219,112 @@ function setSOClickers($status, $jo_no, $urights) {
 				);
 			}
 
-			$('#details').dataTable({
-				"ajax": {
-					"url": "jo.datacontrol.php",
-					"data": { trace_no: "<?php echo $traceNo; ?>", mod: "retrieve", sid: Math.random() },
-					"method": "POST"	
+			var canEditJO = <?php
+				echo (
+					$status == 'Active' ||
+					$status == 'Received' ||
+					$status == 'On-going Repair'
+				) ? 'true' : 'false';
+			?>;
+
+			var numberRenderer = $.fn.dataTable.render.number(',', '.', 2, '');
+
+			$('#details').DataTable({
+				ajax: {
+					url: "jo.datacontrol.php",
+					type: "POST",
+					data: {
+						trace_no: "<?php echo $traceNo; ?>",
+						mod: "retrieve",
+						sid: Math.random()
+					}
 				},
-				"scrollY":  "150",
-				"select":	'single',
-				"pagingType": "full_numbers",
-				"bProcessing": true,
-				"searching": false,
-				"paging": false,
-				"info": false,
-				
-				"aoColumns": [
-					{ mData: 'id' },
-					{ mData: 'code' },
-					{ mData: 'brand' },
-					{ mData: 'description' },
-					{ mData: 'qty', render: $.fn.dataTable.render.number(',', '.', 2, '')},
-					{ mData: 'amount', render: $.fn.dataTable.render.number(',', '.', 2, '') },
-					{ mData: 'amount_due', render: $.fn.dataTable.render.number(',', '.', 2, '') }
+				scrollY: "150px",
+				scrollCollapse: true,
+				select: "single",
+				searching: false,
+				paging: false,
+				info: false,
+				autoWidth: false,
+				order: [],
+				columns: [
+					{ data: "id", visible: false },
+					{ data: "code", defaultContent: "" },
+					{ data: "brand", defaultContent: "" },
+					{ data: "description", defaultContent: "" },
+					{ data: "qty", render: numberRenderer, className: "dt-body-center" },
+					{ data: "amount", render: numberRenderer, className: "dt-body-right" },
+					{ data: "amount_due", render: numberRenderer, className: "dt-body-right" },
+					{
+						data: null,
+						orderable: false,
+						searchable: false,
+						className: "jo-action-cell",
+						render: function(data, type, row) {
+							if (type !== "display" || !canEditJO) {
+								return "";
+							}
+
+							return '<button type="button" class="jo-remove-button" ' +
+									'onclick="removeJOEntry(\'parts\', ' + row.id + ');" ' +
+									'title="Remove Part">&#8722;</button>';
+						}
+					}
 				],
-				"aoColumnDefs": [
-					{ className: "dt-body-center", "targets": [1,3,4,5,6]},
-					{ "targets": [0], "visible": false }
-				]
+				 columnDefs: [
+					{ targets: 0, visible: false },
+					{ targets: 7, orderable: false, searchable: false }
+				],
+
+				initComplete: function() {
+					this.api().columns.adjust();
+				}
 			});
 
-			$('#services').dataTable({
-				"ajax": {
-					"url": "jo.datacontrol.php",
-					"data": { trace_no: "<?php echo $traceNo; ?>", mod: "retrieveServices", sid: Math.random() },
-					"method": "POST"	
+			$('#services').DataTable({
+				ajax: {
+					url: "jo.datacontrol.php",
+					type: "POST",
+					data: {
+						trace_no: "<?php echo $traceNo; ?>",
+						mod: "retrieveServices",
+						sid: Math.random()
+					}
 				},
-				"scrollY":  "150",
-				"select":	'single',
-				"pagingType": "full_numbers",
-				"bProcessing": true,
-				"searching": false,
-				"paging": false,
-				"info": false,
-				
-				"aoColumns": [
-					{ mData: 'id' },
-					{ mData: 'code' },
-					{ mData: 'brand' },
-					{ mData: 'description' },
-					{ mData: 'qty', render: $.fn.dataTable.render.number(',', '.', 2, '')},
-					{ mData: 'amount', render: $.fn.dataTable.render.number(',', '.', 2, '') },
-					{ mData: 'amount_due', render: $.fn.dataTable.render.number(',', '.', 2, '') }
+				scrollY: "150px",
+				scrollCollapse: true,
+				select: "single",
+				searching: false,
+				paging: false,
+				info: false,
+				autoWidth: false,
+				order: [],
+				columns: [
+					{ data: "id", visible: false },
+					{ data: "item_code", defaultContent: "" },
+					{ data: "description", defaultContent: "" },
+					{ data: "qty", render: numberRenderer, className: "dt-body-center" },
+					{ data: "amount", render: numberRenderer, className: "dt-body-right" },
+					{ data: "amount_due", render: numberRenderer, className: "dt-body-right" },
+					{
+						data: null,
+						orderable: false,
+						searchable: false,
+						className: "jo-action-cell",
+						render: function(data, type, row) {
+							if (type !== "display" || !canEditJO) {
+								return "";
+							}
+
+							return '<button type="button" class="jo-remove-button" ' +
+									'onclick="removeJOEntry(\'service\', ' + row.id + ');" ' +
+									'title="Remove Service">&#8722;</button>';
+						}
+					}
 				],
-				"aoColumnDefs": [
-					{ className: "dt-body-center", "targets": [1,3,4,5,6]},
-					{ "targets": [0], "visible": false }
+				columnDefs: [
+					{ targets: 0, visible: false },
+					{ targets: [3, 4, 5, 6], className: "dt-body-center" }
 				]
 			});
 			
@@ -286,12 +337,20 @@ function setSOClickers($status, $jo_no, $urights) {
 			<?php } ?>
 		});
 
-		function redrawDataTable() {
-			$('#details').DataTable().ajax.url("jo.datacontrol.php?mod=retrieve&trace_no=<?php echo $traceNo; ?>").load();
+		function redrawIItemDataTable() {
+			if ($.fn.DataTable.isDataTable('#details')) {
+				$('#details').DataTable().ajax
+					.url("jo.datacontrol.php?mod=retrieve&trace_no=<?php echo $traceNo; ?>")
+					.load(null, false);
+			}
 		}
 
-		function redrawDataTable() {
-			$('#services').DataTable().ajax.url("jo.datacontrol.php?mod=retrieveServices&trace_no=<?php echo $traceNo; ?>").load();
+		function redrawServiceDataTable() {
+			if ($.fn.DataTable.isDataTable('#services')) {
+				$('#services').DataTable().ajax
+					.url("jo.datacontrol.php?mod=retrieveServices&trace_no=<?php echo $traceNo; ?>")
+					.load(null, false);
+			}
 		}
 
 	</script>
@@ -335,6 +394,12 @@ function setSOClickers($status, $jo_no, $urights) {
 			font-size: 7pt;
 			padding: 4px 5px;
 			border-left: 2px solid #1c999b;
+		}
+
+		table.jo-detail-table,
+		table.jo-detail-table th,
+		table.jo-detail-table td {
+			box-sizing: border-box !important;
 		}
 
 	</style>
@@ -385,13 +450,11 @@ function setSOClickers($status, $jo_no, $urights) {
 			</tr>
 			<tr><td height="2"></td></tr>
 		</table>
-		<table width=100% style="text-align: center; padding: 5px;" class="section">
-			<tr>
-				<td height=2></td>
-				<td align=center class="bareBold" style="font-weight:bold;" valign=top>CUSTOMER DETAILS</td>
-				<td <height=2></td>
-			</tr>
-		</table>
+		<div class="jo-detail-section">
+			<div class="jo-detail-heading">
+				<span>CUSTOMER DETAILS</span>
+			</div>
+		</div>
 		<table border="0" cellpadding="0" cellspacing="1" width=100% style="background-color: #f3f2f2;">
 			<tr>
 				<td width=60% valign=top>
@@ -467,15 +530,11 @@ function setSOClickers($status, $jo_no, $urights) {
 		</table>
 
 		<!-- UNIT DETAILS HEADER -->
-		<table width="100%" style="text-align:center; padding:5px;" class="section">
-			<tr>
-				<td height="2"></td>
-				<td align="center" class="bareBold" style="font-weight:bold; border-bottom: 1px solid 17a2a4;" valign="top"> UNIT DETAILS
-				</td>
-				<td height="2"></td>
-			</tr>
-		</table>
-
+		<div class="jo-detail-section">
+			<div class="jo-detail-heading">
+				<span>UNIT DETAILS</span>
+			</div>
+		</div>
 		<!-- UNIT DETAILS BODY -->
 		<table border="0" cellpadding="0" cellspacing="1" width="100%" style="background-color: #f3f2f2;">
 			<tr>
@@ -623,13 +682,11 @@ function setSOClickers($status, $jo_no, $urights) {
 			</tr>
 		</table>
 
-		<table width=100% style="text-align: center; padding: 5px;" class="section">
-			<tr>
-				<td height=2></td>
-				<td align=center class="bareBold" style="font-weight:bold; border-bottom: 1px solid 17a2a4;" valign=top>VISUAL PARTS INSPECTION</td>
-				<td <height=2></td>
-			</tr>
-		</table>
+		<div class="jo-detail-section">
+			<div class="jo-detail-heading">
+				<span>VISUAL PARTS INSPECTION</span>
+			</div>
+		</div>
 		<table border="0" cellpadding="0" cellspacing="1" width=100% style="background-color: #f3f2f2;">
 			<tr>
 				<!-- COLUMN 1 & 2: GENERAL INFORMATION -->
@@ -788,47 +845,69 @@ function setSOClickers($status, $jo_no, $urights) {
 				</td>
 			</tr>
 		</table>
-		<table width=100% style="text-align: center; padding: 5px;" class="section">
-			<tr>
-				<td height=2></td>
-				<td align=center class="bareBold" style="font-weight:bold;" valign=top>PARTS / ITEMS USED</td>
-				<td <height=2></td>
-			</tr>
-		</table>
-		<table class="cell-border" id="details">
-			<thead>
-				<tr>
-					<th></th>
-					<th width=12%>ITEM CODE</th>
-					<th width=10%>BRAND</th>
-					<th >DESCRIPTION</th>
-					<th width=10%>QTY</th>
-					<th width=10%>PRICE</th>
-					<th width=10%>AMT. DUE</th>
-				</tr>
-			</thead>
-		</table>
-		<table width=100% style="text-align: center; padding: 5px;" class="section">
-			<tr>
-				<td height=2></td>
-				<td align=center class="bareBold" style="font-weight:bold;" valign=top>SERVICE/S OFFER</td>
-				<td <height=2></td>
-			</tr>
-		</table>
-		<table class="cell-border" id="services">
-			<thead>
-				<tr>
-					<th></th>
-					<th width=12%>ITEM CODE</th>
-					<th width=10%>BRAND</th>
-					<th >DESCRIPTION</th>
-					<th width=10%>QTY</th>
-					<th width=10%>PRICE</th>
-					<th width=10%>AMT. DUE</th>
-				</tr>
-			</thead>
-		</table>
+		<div class="jo-detail-section">
+			<div class="jo-detail-heading">
+				<span>PARTS / ITEMS USED</span>
 
+				<?php if (
+					$status == 'Active' ||
+					$status == 'Received' ||
+					$status == 'On-going Repair'
+				) { ?>
+					<button type="button"
+							class="jo-add-button"
+							onclick="addItem();"
+							title="Add Parts Used">+</button>
+				<?php } ?>
+			</div>
+
+			<table class="jo-detail-table" id="details" width="100%">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th width="12%">ITEM CODE</th>
+						<th width="12%">BRAND</th>
+						<th>DESCRIPTION</th>
+						<th width="9%">QTY</th>
+						<th width="12%">PRICE</th>
+						<th width="12%">AMT. DUE</th>
+						<th width="55px">ACTION</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
+		<div class="jo-detail-section">
+			<div class="jo-detail-heading">
+				<span>SERVICE/S OFFER</span>
+
+				<?php if (
+					$status == 'Active' ||
+					$status == 'Received' ||
+					$status == 'On-going Repair'
+				) { ?>
+					<button type="button"
+							class="jo-add-button"
+							onclick="addService();"
+							title="Add Service">+</button>
+				<?php } ?>
+			</div>
+
+			<table class="jo-detail-table" id="services" width="100%">
+				<thead>
+					<tr>
+						<th style="display:none;">ID</th>
+						<th width="14%">ITEM CODE</th>
+						<th>DESCRIPTION</th>
+						<th width="10%">QTY</th>
+						<th width="13%">PRICE</th>
+						<th width="13%">AMT. DUE</th>
+						<th width="55px">ACTION</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
 		<table width=100% class="td_content">
 			<tr>
 				<td width=50%>
@@ -837,19 +916,10 @@ function setSOClickers($status, $jo_no, $urights) {
 				</td>
 				<td align=right width=50% valign=top>
 					Total Parts Cost : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type=text name="pgrandTotal" id="pgrandTotal" value="<?php echo number_format($res['pamount'],2); ?>" readonly> <br />
-					Service Cost : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type="text" name="laborTotal" id="laborTotal" value="<?php echo number_format($res['labor'], 2, '.', ''); ?>" oninput="computeTransactionTotal()" onchange="saveLaborTotal()" onblur="console.log('Service Cost field lost focus')"> <br/>					
+					Service Cost : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type="text" name="laborTotal" id="laborTotal" value="<?php echo number_format($res['labor'], 2, '.', ''); ?>" oninput="computeTransactionTotal()" onchange="saveLaborTotal()" onblur="console.log('Service Cost field lost focus')" readonly> <br/>					
 					Transaction Total : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type=text name="grandTotal" id="grandTotal" value="<?php echo number_format($res['amount'],2); ?>" readonly><br />
 					Total Paid / Downpayment : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type="text" id="totalPaid" value="<?php echo number_format($totalPaid, 2); ?>" readonly><br />
 					Remaining Balance : &nbsp;&nbsp;<input style="width:200px;text-align:right;font-weight:bold;" type="text" id="remainingBalance" value="<?php echo number_format(isset($res['remaining_balance']) ? $res['remaining_balance'] : 0,2); ?>"  readonly>
-				</td>
-			</tr>
-			<tr>
-				<td align=left colspan=2 style="padding-top: 15px;">
-					<?php if($status == 'Active' || $status == 'Received' || $status == 'On-going Repair') { ?>
-						<a href="#" class="topClickers" onClick="javascript:addItem();"><img src="images/icons/add-2.png" width=16 height=16 border=0 align="absmiddle">&nbsp;Add Parts Used</a>&nbsp;
-						<!--a href="#" class="topClickers" onClick="javascript:updateItem();"><img src="images/icons/discount-icon.png" width=16 height=16 border=0 align="absmiddle">&nbsp;Apply Line Discount</a-->&nbsp;
-						<a href="#" class="topClickers" onClick="javascript:deleteItem();"><img src="images/icons/delete.png" width=16 height=16 border=0 align="absmiddle">&nbsp;Remove Selected Item</a>
-					<?php } ?>
 				</td>
 			</tr>
 		</table>	

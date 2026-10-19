@@ -419,6 +419,52 @@ function computeItemAmount() {
     </form>
 </div>
 
+<div id="servicesEntry" style="display:none;">
+    <form name="frmServicesEntry" id="frmServicesEntry">
+        <input type="hidden" id="recordId" name="recordId">
+
+        <table width="100%" cellspacing="2" cellpadding="0">
+            <tr>
+                <td class="bareThin" width="40%">Description :</td>
+                <td>
+                    <input type="text" name="serviceDescription"
+                        id="serviceDescription" class="inputSearch2"
+                        style="width:90%; padding-left:22px;">
+                </td>
+            </tr>
+            <tr>
+                <td class="bareThin" width="40%">Service Code :</td>
+                <td>
+                    <input type="text" name="serviceCode"
+                        id="serviceCode" class="gridInput"
+                        style="width:90%;" disabled>
+                </td>
+            </tr>
+            <tr>
+                <td class="bareThin" width="40%">Quantity :</td>
+                <td>
+					<input type="text" name="serviceQty"  id="serviceQty" class="gridInput" style="width:90%;" value="1">
+            </tr>
+            <tr>
+                <td class="bareThin" width="40%">Amount :</td>
+                <td>
+                    <input type="text" name="serviceAmount"
+                        id="serviceAmount" class="gridInput"
+                        style="width:90%;" value="0.00" disabled>
+                </td>
+            </tr>
+            <tr>
+                <td class="bareThin" width="40%">Amount Total :</td>
+                <td>
+                    <input type="text" name="serviceAmountDue"
+                        id="serviceAmountDue" class="gridInput"
+                        style="width:90%;" value="0.00" disabled>
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+
 <div id="loaderMessage" style="display: none;">
 	<table width=100%>
 		<tr>

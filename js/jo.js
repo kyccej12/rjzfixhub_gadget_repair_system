@@ -38,7 +38,8 @@ function saveLaborTotal() {
         dataType: "json",
         data: {
             mod: "updateLabor",
-            jo_no: jo_no,
+            jo_no: jo_no, 
+            trace_no: frameWindow.$("#trace_no").val(),
             laborTotal: labor,
             sid: Math.random()
         },
@@ -120,15 +121,27 @@ function addItem() {
 						},
 						success: function(result) {
 							if (result.error) {
-								frameWindow.parent.sendErrorMessage(result.error);
-								return;
-							}
+                                frameWindow.parent.sendErrorMessage(result.error);
+                                return;
+                            }
 
-							frameWindow.redrawDataTable();
+                            // Refresh the services list.
+                           if (typeof frameWindow.redrawIItemDataTable === "function") {
+                                frameWindow.redrawIItemDataTable();
+                            }
 
-							frameWindow.$("#pgrandTotal").val(result.partsTotal);
-							frameWindow.$("#laborTotal").val(result.laborTotal);
-							frameWindow.$("#grandTotal").val(result.grandTotal);
+                            // Update JO totals and payment balance.
+                            frameWindow.$("#pgrandTotal").val(result.partsTotal);
+                            frameWindow.$("#laborTotal").val(result.laborTotal);
+                            frameWindow.$("#grandTotal").val(result.grandTotal);
+
+                            if (frameWindow.$("#totalPaid").length) {
+                                frameWindow.$("#totalPaid").val(result.totalPaid);
+                            }
+
+                            if (frameWindow.$("#remainingBalance").length) {
+                                frameWindow.$("#remainingBalance").val(result.remainingBalance);
+                            }
 
 							$form[0].reset();
 						},
@@ -194,6 +207,181 @@ function addItem() {
 		}
 		
 	});
+}
+
+function addService() {
+    var $p = parent.$;
+    var frameWindow = window;
+
+    var $serviceEntry = $p("#servicesEntry");
+    var $form = $p("#frmServicesEntry");
+
+    $serviceEntry.dialog({
+        title: "Add Service",
+        width: 600,
+        resizable: false,
+        modal: true,
+        buttons: [
+            {
+                text: "Add Service",
+                click: function() {
+                    var msg = "";
+
+                    var serviceCode = $p("#serviceCode").val();
+                    var qty = $p("#serviceQty").val();
+                    var amount = $p("#serviceAmount").val();
+
+                    if (serviceCode == "") {
+                        msg += "- Please select a service.<br/>";
+                    }
+
+                    if (qty == "" || isNaN(qty) ||
+                        parseFloat(qty) <= 0) {
+                        msg += "- Invalid Quantity.<br/>";
+                    }
+
+                    if (msg != "") {
+                        frameWindow.parent.sendErrorMessage(msg);
+                        return;
+                    }
+
+                    $p.ajax({
+                        url: "jo.datacontrol.php",
+                        type: "POST",
+                        dataType: "json",
+                        data: {
+                            mod: "addService",
+                            jo_no: frameWindow.$("#jo_no").val(),
+                            trace_no: frameWindow.$("#trace_no").val(),
+                            item_code: serviceCode,
+                            description: $p("#serviceDescription").val(),
+                            qty: qty,
+                            amount: amount,
+                            sid: Math.random()
+                        },
+                       success: function(result) {
+                            if (result.error) {
+                                frameWindow.parent.sendErrorMessage(result.error);
+                                return;
+                            }
+
+                            // Refresh the services list.
+                            if (typeof frameWindow.redrawServiceDataTable === "function") {
+                                frameWindow.redrawServiceDataTable();
+                            }
+
+                            // Update JO totals and payment balance.
+                            frameWindow.$("#pgrandTotal").val(result.partsTotal);
+                            frameWindow.$("#laborTotal").val(result.laborTotal);
+                            frameWindow.$("#grandTotal").val(result.grandTotal);
+
+                            if (frameWindow.$("#totalPaid").length) {
+                                frameWindow.$("#totalPaid").val(result.totalPaid);
+                            }
+
+                            if (frameWindow.$("#remainingBalance").length) {
+                                frameWindow.$("#remainingBalance").val(result.remainingBalance);
+                            }
+
+                            // Reset the service entry form.
+                            $form[0].reset();
+                            $p("#serviceQty").val("1");
+                            $p("#serviceAmount").val("0.00");
+                            $p("#serviceAmountDue").val("0.00");
+
+                            $serviceEntry.dialog("close");
+                        },
+                        error: function(xhr) {
+                            console.error(
+                                "Add service error:",
+                                xhr.responseText
+                            );
+
+                            frameWindow.parent.sendErrorMessage(
+                                "Unable to add service. Check jo.datacontrol.php and the browser console."
+                            );
+                        }
+                    });
+                },
+                icons: { primary: "ui-icon-check" }
+            },
+            {
+                text: "Close",
+                click: function() {
+                    $serviceEntry.dialog("close");
+                    $form[0].reset();
+                    $p("#serviceQty").val("1");
+                    $p("#serviceAmount").val("0.00");
+                    $p("#serviceAmountDue").val("0.00");
+                },
+                icons: { primary: "ui-icon-closethick" }
+            }
+        ]
+    });
+
+    // Service description autocomplete.
+    $p("#serviceDescription").autocomplete({
+        minLength: 1,
+
+        source: function(request, response) {
+            console.log("Service autocomplete triggered:", request.term);
+
+            $p.getJSON("suggestJOService.php", {
+                term: request.term,
+                sid: Math.random()
+            }, function(data) {
+                console.log("Service results:", data);
+                response(data);
+            }).fail(function(xhr) {
+                console.error(
+                    "suggestJOService.php failed:",
+                    xhr.status,
+                    xhr.responseText
+                );
+                response([]);
+            });
+        },
+
+       select: function(event, ui) {
+            $p("#serviceDescription").val(ui.item.description);
+            $p("#serviceCode").val(ui.item.code);
+
+            var unitPrice = parseFloat(ui.item.amount) || 0;
+
+            $p("#serviceAmount").val(unitPrice.toFixed(2));
+            $p("#serviceQty").val("1");
+
+            computeServiceAmount();
+
+            return false;
+        }
+    });
+
+    // Calculate when the quantity changes.
+    $p("#serviceQty")
+        .off("input.service")
+        .on("input.service", function() {
+            computeServiceAmount();
+        });
+}
+
+function computeServiceAmount() {
+    var $p = parent.$;
+
+    var qty = parseFloat($p("#serviceQty").val()) || 0;
+    var amount = parseFloat($p("#serviceAmount").val()) || 0;
+
+    if (qty < 0) {
+        qty = 0;
+    }
+
+    if (amount < 0) {
+        amount = 0;
+    }
+
+    var amountDue = qty * amount;
+
+    $p("#serviceAmountDue").val(amountDue.toFixed(2));
 }
 
 
@@ -306,6 +494,12 @@ function openReceivePayment() {
         $dialog = $p("#joPaymentDialog");
 	}
 
+    function showPaymentMessage(message) {
+        $dialog.find("#payMessage")
+            .text(message)
+            .show();
+    }
+
     function money(value) {
         var number = parseFloat(value);
         if (isNaN(number)) {
@@ -346,6 +540,7 @@ function openReceivePayment() {
         data: {
             mod: "getPaymentSummary",
             jo_no: joNo,
+            trace_no: $("#trace_no").val(),
             sid: Math.random()
         },
         success: function(result) {
@@ -414,6 +609,7 @@ function openReceivePayment() {
                             var paymentData = {
                                 mod: "savePayment",
                                 jo_no: joNo,
+                                trace_no: frameWindow.$("#trace_no").val(),
                                 amount: money(amount),
                                 payment_type: $dialog.find("#payType").val(),
                                 payment_method: $dialog.find("#payMethod").val(),
@@ -459,13 +655,15 @@ function openReceivePayment() {
 									frameWindow.$("#remainingBalance").val(
 										totals.remainingBalance || "0.00"
 									);
+   
+                                   $dialog.dialog("close");
 
-                                    $dialog.dialog("close");
+                                    // Show a browser message above all dialogs.
+                                    parent.alert("Payment recorded successfully.");
 
-                                    parent.sendErrorMessage(
-                                        "Payment recorded successfully."
-                                    );
+                                    // Refresh the Job Order after the user clicks OK.
                                     parent.viewJO(joNo);
+
                                 },
                                 error: function(xhr) {
                                     console.error(
@@ -720,34 +918,156 @@ function saveJOHeader() {
 }
 
 function receivedJO() {
-	saveJOHeader();
-	if(confirm("Are you sure you want to received this Job Order?") == true) { 
-	
-		$.post("jo.datacontrol.php", { mod: "check4print", jo_no: $("#jo_no").val(), sid: Math.random() }, function(data) {
-			if(data == "noerror") {
-				$("#uppermenus").html('');
-				$.post("jo.datacontrol.php", { mod: "receivedJO", jo_no: $("#jo_no").val(), sid: Math.random() }, function() {
-					parent.viewJO($("#jo_no").val());
-					printJO();
-				});
-			} else {
-				switch(data) {
-					case "head": parent.sendErrorMessage("Unable to received this document as it seems it hasn't been saved yet."); break;
-					case "det": parent.sendErrorMessage("Unable to received this document as it seems products or services haven't been added yet."); break;
-					case "both": parent.sendErrorMessage("Unable to received this document as it seems it hasn't been saved yet."); break;
-				}
-			}
-		},"html");
-	}
+    if (confirm("Are you sure you want to receive this Job Order?") != true) {
+        return;
+    }
+
+    saveJOHeader();
+
+    $.post("jo.datacontrol.php", {
+        mod: "check4print",
+        jo_no: $("#jo_no").val(),
+        trace_no: $("#trace_no").val(),
+        sid: Math.random()
+    }, function(data) {
+
+        data = $.trim(data);
+        console.log("check4print response:", data);
+
+        if (data == "noerror") {
+
+            $("#uppermenus").html('');
+
+            $.post("jo.datacontrol.php", {
+                mod: "receivedJO",
+                jo_no: $("#jo_no").val(),
+                trace_no: $("#trace_no").val(),
+                sid: Math.random()
+            }, function(response) {
+
+                console.log("receivedJO response:", response);
+
+                parent.viewJO($("#jo_no").val());
+                printJO();
+
+            }).fail(function(xhr) {
+                console.error("receivedJO failed:", xhr.responseText);
+                parent.sendErrorMessage(
+                    "Unable to update the Job Order status."
+                );
+            });
+
+        } else {
+            switch (data) {
+                case "head":
+                    parent.sendErrorMessage(
+                        "Unable to receive this document because it has not been saved yet."
+                    );
+                    break;
+
+                case "det":
+                    parent.sendErrorMessage(
+                        "Unable to receive this document because products or services have not been added yet."
+                    );
+                    break;
+
+                case "both":
+                    parent.sendErrorMessage(
+                        "Unable to receive this document because it has not been saved yet."
+                    );
+                    break;
+
+                default:
+                    parent.sendErrorMessage(
+                        "Unexpected response from check4print: " + data
+                    );
+                    break;
+            }
+        }
+
+    }, "html").fail(function(xhr) {
+        console.error("check4print failed:", xhr.responseText);
+        parent.sendErrorMessage("Unable to validate the Job Order.");
+    });
+}
+
+function removeJOEntry(type, lineId) {
+    if (!lineId || (type != "parts" && type != "service")) {
+        parent.sendErrorMessage("Invalid entry selected.");
+        return;
+    }
+
+    var message = type == "parts"
+        ? "Are you sure you want to remove this part?"
+        : "Are you sure you want to remove this service?";
+
+    if (!confirm(message)) {
+        return;
+    }
+
+    var frameWindow = window;
+    var mod = type == "parts" ? "deleteLine" : "deleteServiceLine";
+
+    $.ajax({
+        url: "jo.datacontrol.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            mod: mod,
+            lid: lineId,
+            jo_no: $("#jo_no").val(),
+            trace_no: $("#trace_no").val(),
+            laborTotal: $("#laborTotal").val(),
+            sid: Math.random()
+        },
+        success: function(result) {
+            if (result.error) {
+                parent.sendErrorMessage(result.error);
+                return;
+            }
+
+            if (type == "parts") {
+                redrawIItemDataTable();
+            } else {
+                redrawServiceDataTable();
+            }
+
+            if (result.partsTotal !== undefined) {
+                $("#pgrandTotal").val(result.partsTotal);
+            }
+
+            if (result.laborTotal !== undefined) {
+                $("#laborTotal").val(result.laborTotal);
+            }
+
+            if (result.grandTotal !== undefined) {
+                $("#grandTotal").val(result.grandTotal);
+            }
+
+            if (result.totalPaid !== undefined) {
+                $("#totalPaid").val(result.totalPaid);
+            }
+
+            if (result.remainingBalance !== undefined) {
+                $("#remainingBalance").val(result.remainingBalance);
+            }
+        },
+        error: function(xhr) {
+            console.error("Remove entry error:", xhr.responseText);
+            parent.sendErrorMessage(
+                "Unable to remove entry. Check jo.datacontrol.php and the browser console."
+            );
+        }
+    });
 }
 
 function reopen() {
-	$.post("so.datacontrol.php", { mod: "checkBilled", jo_no: $("#jo_no").val(), sid: Math.random() }, function(stat) {
+	$.post("so.datacontrol.php", { mod: "checkBilled", jo_no: $("#jo_no").val(), trace_no: $("#trace_no").val(), sid: Math.random() }, function(stat) {
 		if(stat == 'processed') {
 			parent.sendErrorMessage("- It appears that this Sales Order has already been paid or billed...");
 		} else {
 			if(confirm("Are you sure you want to set this document to active status?") == true) {
-				$.post("so.datacontrol.php", { mod: "reopen", jo_no: $("#jo_no").val(), terms: $("#terms").val(), sid: Math.random() }, function() {
+				$.post("so.datacontrol.php", { mod: "reopen", jo_no: $("#jo_no").val(), trace_no: $("#trace_no").val(), terms: $("#terms").val(), sid: Math.random() }, function() {
 					parent.viewSO($("#jo_no").val()); 
 				});
 			}
@@ -758,7 +1078,7 @@ function reopen() {
 function cancel() {
 
 	if(confirm("Are you sure you want to Cancel this Job Order?") == true) {
-		$.post("jo.datacontrol.php", { mod: "cancel", jo_no: $("#jo_no").val(), sid: Math.random() }, function(){
+		$.post("jo.datacontrol.php", { mod: "cancel", jo_no: $("#jo_no").val(), trace_no: $("#trace_no").val(), sid: Math.random() }, function(){
 			alert("Job Order Successfully Cancelled!");
 			parent.viewJO($("#jo_no").val());
 		});
@@ -767,7 +1087,7 @@ function cancel() {
 
 function reuse() {
 	if(confirm("Are you sure you want to Recycle this document?") == true) {
-		$.post("jo.datacontrol.php", { mod: "reopen", jo_no: $("#jo_no").val(), sid: Math.random() }, function(){
+		$.post("jo.datacontrol.php", { mod: "reopen", jo_no: $("#jo_no").val(), trace_no: $("#trace_no").val(), sid: Math.random() }, function(){
 			parent.viewJO($("#jo_no").val());
 		});
 	}
@@ -788,6 +1108,7 @@ function viewJOComment() {
 
     var $p = parent.$;
     var jo_no = $("#jo_no").val();
+    var trace_no = $("#trace_no").val();
 
     if (!jo_no) {
         parent.sendErrorMessage("Please save the Job Order first.");
@@ -830,6 +1151,7 @@ function viewJOComment() {
     var $dialog = $p("#joCommentDialog");
 
     $dialog.data("jo_no", jo_no);
+    $dialog.data("trace_no", trace_no);
 
 	var dialogHeight = Math.min(550, $p(window).height() - 40);
 
@@ -864,6 +1186,7 @@ function viewJOComment() {
         dataType: "json",
         data: {
             mod: "retrieveJOCommentStatuses",
+            trace_no: trace_no,
             sid: Math.random()
         },
         success: function(data) {
@@ -888,11 +1211,11 @@ function viewJOComment() {
         }
     });
 
-    loadJOCommentHistory(jo_no);
+    loadJOCommentHistory(jo_no, trace_no);
 }
 
 
-function loadJOCommentHistory(jo_no) {
+function loadJOCommentHistory(jo_no, trace_no) {
 
     var $p = parent.$;
     var $history = $p("#joCommentHistory");
@@ -908,6 +1231,7 @@ function loadJOCommentHistory(jo_no) {
         data: {
             mod: "retrieveJOComments",
             jo_no: jo_no,
+            trace_no: trace_no,
             sid: Math.random()
         },
         success: function(result) {
@@ -988,6 +1312,7 @@ function saveJOCommentDialog() {
     var $dialog = $p("#joCommentDialog");
 
     var jo_no = $dialog.data("jo_no");
+    var trace_no = $dialog.data("trace_no");
     var stat = $p("#joCommentStatus").val();
     var comment = $p("#joCommentText").val();
 
@@ -1011,6 +1336,7 @@ function saveJOCommentDialog() {
         data: {
             mod: "saveJOComment",
             jo_no: jo_no,
+            trace_no: trace_no,
             stat: stat,
             comment: comment,
             sid: Math.random()
@@ -1024,7 +1350,7 @@ function saveJOCommentDialog() {
 
             if (result.success) {
                 $p("#joCommentText").val("");
-                loadJOCommentHistory(jo_no);
+                loadJOCommentHistory(jo_no, trace_no);
 
                 // Refresh the JO screen to show the new status.
                 if (typeof viewJOComment === "function") {
