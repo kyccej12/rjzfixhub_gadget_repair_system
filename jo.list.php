@@ -39,7 +39,35 @@
 
 				parent.viewJO(jo_no);
 			}
+			
 		
+		function printJO() {
+			var table = $("#itemlist").DataTable();
+			var row = table.row(".selected").node();
+
+			if (!row) {
+				parent.sendErrorMessage("Please select a Job Order to print.");
+				return;
+			}
+
+			var $row = $(row);
+
+			var jo_no = $row.attr("data-jo-no");
+			var trace_no = $row.attr("data-trace-no");
+			var branch = $row.attr("data-branch");
+
+			console.log("JO No:", jo_no);
+			console.log("Trace No:", trace_no);
+			console.log("Branch:", branch);
+
+			if (!jo_no) {
+				parent.sendErrorMessage("Unable to retrieve the Job Order number.");
+				return;
+			}
+
+			parent.printJO(jo_no, 0, trace_no, branch);
+		}
+
 		$(document).ready(function() {
 			var myTable = $('#itemlist').DataTable({
 				"scrollY":  "430px",
@@ -135,6 +163,9 @@
 					<button class="ui-button ui-widget ui-corner-all" onClick="parent.showJO();">
 						<span class="ui-icon ui-icon-refresh"></span> Reload List
 					</button>
+					<button class="ui-button ui-widget ui-corner-all" onClick="printJO();">
+						<span class="ui-icon ui-icon-print"></span> Print Job Order
+					</button>
 				</td>
 				
 				<!-- Right Side Search Box -->
@@ -192,6 +223,8 @@
 					$query = "SELECT distinct
 						a.jo_no AS jo_no,
 						LPAD(a.jo_no,6,'0') AS jo,
+						a.trace_no AS trace_no,
+  			  			a.branch AS branch,
 						DATE_FORMAT(a.jo_date,'%m/%d/%Y') AS sdate,
 						a.customer_name, 
 						a.customer_address,
@@ -219,22 +252,24 @@
 					$showTo = $showFrom + $rowsPerPage - 1;
 					if($showTo > $numrows[0]) { $showTo = $numrows[0]; }
 
-					while($row = $_i->fetch_array()) {
-		
-						echo "<tr data-jo-no='" . htmlspecialchars($row['jo_no'], ENT_QUOTES, 'UTF-8') . "'>							
-								<td>$row[jo]</td>
-								<td>$row[sdate]</td>
-								<td>$row[customer_name]</td>
-								<td>$row[customer_address]</td>
-								<td>$row[customer_contactno]</td>
-								<td>$row[unit] </td>
-								<td>$row[remarks]</td>
-								<td>$row[amount]</td>
-								<td>$row[status]</td>
+					while ($row = $_i->fetch_array()) {
+
+						echo "<tr
+							data-jo-no='" . htmlspecialchars($row['jo_no'], ENT_QUOTES, 'UTF-8') . "'
+							data-trace-no='" . htmlspecialchars($row['trace_no'], ENT_QUOTES, 'UTF-8') . "'
+							data-branch='" . htmlspecialchars($row['branch'], ENT_QUOTES, 'UTF-8') . "'
+						>
+							<td>" . htmlspecialchars($row['jo'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['sdate'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['customer_name'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['customer_address'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['customer_contactno'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['unit'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['remarks'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['amount'], ENT_QUOTES, 'UTF-8') . "</td>
+							<td>" . htmlspecialchars($row['status'], ENT_QUOTES, 'UTF-8') . "</td>
 						</tr>";
-
 					}
-
 				?>
 
 			</tbody>

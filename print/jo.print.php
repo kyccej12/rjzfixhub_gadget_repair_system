@@ -11,8 +11,6 @@
  */
 
 session_start();
-require_once("../handlers/session.guard.php");
-
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
@@ -33,9 +31,9 @@ if ($joNoInput === '' || !ctype_digit($joNoInput)) {
     die("Invalid Job Order number.");
 }
 
-/* Fetch the Job Order header. */
+/* Fetch the Job Order header using JO number and session branch. */
 $joNoSql = addslashes($joNoInput);
-$branchSql = addslashes((string)$branch);
+$branchSql = (int)$branch;
 
 $header = $mydb->getArray("
     SELECT *
@@ -44,6 +42,41 @@ $header = $mydb->getArray("
       AND branch = '{$branchSql}'
     LIMIT 1
 ");
+
+/* Validate the header before accessing its fields. */
+if (empty($header) || empty($header['jo_no'])) {
+    die("Job Order not found.");
+}
+
+/* Get trace_no directly from the matched JO header. */
+$traceNo = isset($header['trace_no'])
+    ? trim($header['trace_no'])
+    : '';
+
+$createdOn = isset($header['created_on'])
+    ? $header['created_on']
+    : '';
+
+$createdOnFormatted = '';
+
+if ($createdOn != '' && $createdOn != '0000-00-00 00:00:00') {
+    $createdOnFormatted = date(
+        'F d, Y h:i A',
+        strtotime($createdOn)
+    );
+}
+
+// Debug: verify the JO being printed
+// echo "<pre>";
+// echo "========== JO PRINT DEBUG ==========\n";
+// echo "Requested JO No : " . htmlspecialchars($joNoInput) . "\n";
+// echo "Session Branch  : " . htmlspecialchars((string)$_SESSION['branchid']) . "\n";
+// echo "Header JO No    : " . htmlspecialchars((string)$header['jo_no']) . "\n";
+// echo "Header Branch   : " . htmlspecialchars((string)$header['branch']) . "\n";
+// echo "Header Trace No : " . htmlspecialchars((string)$header['trace_no']) . "\n";
+// echo "====================================";
+// echo "</pre>";
+// exit;
 
 list($deviceType) = $mydb->getArray("SELECT a.category FROM options_devicetype a LEFT JOIN jo_header b ON a.device_id = b.device_type WHERE b.jo_no = '{$joNoSql}' AND b.branch = '{$branchSql}';");
 
@@ -563,7 +596,7 @@ $html = '
 <tr>
     <th width="8%">#</th>
     <th width="19%">ITEM CODE</th>
-    <th width="31%">DESCRIPTION</th>
+    <th>DESCRIPTION</th>
     <th width="8%">QTY</th>
     <th width="16%">AMOUNT</th>
 </tr>
@@ -587,7 +620,7 @@ if (is_array($items) && count($items) > 0) {
         </tr>';
     }
 } else {
-    $html .= '<tr><td colspan="6" align="center" class="muted">No parts or items recorded for this Job Order.</td></tr>';
+    $html .= '<tr><td colspan="5" align="center" class="muted">No parts or items recorded for this Job Order.</td></tr>';
 }
 
 $html .= '
@@ -599,7 +632,7 @@ $html .= '
 <thead>
 <tr>
     <th width="8%">#</th>
-    <th width="19%">ITEM CODE</th>
+    <th width="19%">SERVICE CODE</th>
     <th width="31%">DESCRIPTION</th>
     <th width="8%">QTY</th>
     <th width="16%">PRICE</th>
@@ -634,22 +667,21 @@ $html .= '
 </tbody>
 </table>
 
-<htmlpagefooter name="myfooter">
-    <table width="100%" cellpadding="0" cellspacing="0"
-           style="margin-top:8px;">
-        <tr>
-            <td width="52%" valign="top" style="padding-right:10px;">
-                <div class="section">PAYMENT HISTORY</div>
+<table width="100%" cellpadding="4" cellspacing="0"
+       style="margin-top:8px;">
+    <tr>
+        <!-- LEFT: PAYMENT HISTORY -->
+        <td width="55%" valign="top" style="padding-right:10px;">
+            <div class="section">PAYMENT HISTORY</div>
 
-                <table width="100%" cellpadding="4" cellspacing="0"
-                       border="1"
-                       style="border-collapse:collapse;font-size:7pt;">
-                    <tr>
-                        <th width="25%">DATE</th>
-                        <th width="45%">TYPE / METHOD</th>
-                        <th width="30%" align="right">AMOUNT</th>
-                    </tr>
-';
+            <table width="100%" cellpadding="4" cellspacing="0"
+                   border="1"
+                   style="border-collapse:collapse;font-size:7pt;">
+                <tr>
+                    <th width="25%">DATE</th>
+                    <th width="45%">TYPE / METHOD</th>
+                    <th width="30%" align="right">AMOUNT</th>
+                </tr>';
 
 /* Payment history rows */
 if (count($paymentRows) > 0) {
@@ -660,79 +692,104 @@ if (count($paymentRows) > 0) {
             jo_field($payment, 'payment_method', '');
 
         $html .= '
-            <tr>
-                <td>' . jo_h($payment['payment_date']) . '</td>
-                <td>' . jo_h($paymentDescription) . '</td>
-                <td align="right">₱ ' .
-                    jo_money($payment['amount']) . '
-                </td>
-            </tr>';
+                <tr>
+                    <td>' . jo_h($payment['payment_date']) . '</td>
+                    <td>' . jo_h($paymentDescription) . '</td>
+                    <td align="right">₱ ' .
+                        jo_money($payment['amount']) . '
+                    </td>
+                </tr>';
     }
 } else {
     $html .= '
-        <tr>
-            <td colspan="3" align="center">
-                No payments recorded.
-            </td>
-        </tr>';
+                <tr>
+                    <td colspan="3" align="center">
+                        No payments recorded.
+                    </td>
+                </tr>';
 }
 
 /* Total paid */
 $html .= '
-                    <tr>
-                        <td colspan="2">
-                            <strong>TOTAL PAID</strong>
-                        </td>
-                        <td align="right">
-                            <strong>₱ ' .
-                            jo_money($paymentTotal) . '</strong>
-                        </td>
-                    </tr>
-                </table>
+                <tr>
+                    <td colspan="2">
+                        <strong>TOTAL PAID</strong>
+                    </td>
+                    <td align="right">
+                        <strong>₱ ' . jo_money($paymentTotal) . '</strong>
+                    </td>
+                </tr>
+            </table>
+        </td>
 
-                <br />
+        <!-- RIGHT: TRANSACTION TOTALS -->
+        <td width="45%" valign="top" style="padding-left:10px;">
+            <div class="section">TRANSACTION SUMMARY</div>
 
-                <div class="section">UNIT HISTORY / CUSTOMER CONCERN</div>
-                <div class="panel" style="min-height:55px;" colspan="3"s>' .
+            <table width="100%" cellpadding="5" cellspacing="0"
+                   style="font-size:9pt;">
+                <tr>
+                    <td class="total-label">Total Parts Cost</td>
+                    <td class="total-value" align="right">₱ ' .
+                        jo_money($partsTotal) . '
+                    </td>
+                </tr>
+                <tr>
+                    <td class="total-label">Service / Labor Cost</td>
+                    <td class="total-value" align="right">₱ ' .
+                        jo_money($laborTotal) . '
+                    </td>
+                </tr>
+                <tr>
+                    <td class="grand-label">TRANSACTION TOTAL</td>
+                    <td class="grand-value" align="right">₱ ' .
+                        jo_money($grandTotal) . '
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<br />';
+
+$html .= '
+<htmlpagefooter name="myfooter">
+    <table width="100%" cellpadding="5" cellspacing="0"
+           style="margin-top:8px;">
+        <tr>
+            <!-- LEFT: REMARKS -->
+            <td width="48%" valign="top" style="padding-right:10px;">
+                <div class="section" style="text-align:center;">
+                    <strong>REMARKS</strong>
+                </div>
+
+                <div class="panel" style="min-height:55px;">' .
+                    nl2br(jo_h(
+                        $notes !== '' ? $notes : 'No notes recorded.'
+                    )) . '
+                </div>
+            </td>
+
+            <!-- RIGHT: UNIT HISTORY -->
+            <td width="52%" valign="top" style="padding-left:10px;">
+                <div class="section">
+                    UNIT HISTORY / CUSTOMER CONCERN
+                </div>
+
+                <div class="panel" style="min-height:55px;">' .
                     nl2br(jo_h(
                         $remarks !== '' ? $remarks : 'No history recorded.'
                     )) . '
                 </div>
             </td>
-
-            <td width="48%" valign="top" style="padding-top:30px;">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td class="total-label">Total Parts Cost</td>
-                        <td class="total-value">₱ ' .
-                            jo_money($partsTotal) . '
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="total-label">Service / Labor Cost</td>
-                        <td class="total-value">₱ ' .
-                            jo_money($laborTotal) . '
-                        </td>
-                    </tr>
-                     <tr>
-                        <td class="grand-label">TRANSACTION TOTAL</td>
-                        <td class="grand-value">₱ ' .
-                            jo_money($grandTotal) . '
-                        </td>
-                    </tr>
-                    <tr>
-                        <td height="5"></td>
-                        <td height="5">&nbsp;</td>
-                    </tr>
-                </table>
-                <div class="section" style="text-align: center; margin-top: 10px;">
-                    <strong>REMARKS</strong>
-                </div>
-                <div class="panel" style="min-height:55px;" colspan="3"s>' .
-                    nl2br(jo_h(
-                        $notes !== '' ? $notes : 'No notes recorded.'
-                    )) . '
-                </div>
+        </tr>
+    </table>
+    <table width="100%" cellpadding="2" cellspacing="0"
+           style="font-size:5pt; margin-top:5px;">
+        <tr>
+            <td align="right">
+                <strong>DATE PRINTED:</strong> ' .
+                jo_h($createdOnFormatted) . '
             </td>
         </tr>
     </table>

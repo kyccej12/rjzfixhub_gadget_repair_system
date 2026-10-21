@@ -24,9 +24,12 @@
 
 		$totalPaid = (float)$paidData[0];
 	}
+
 	
 function setSOClickers($status, $jo_no, $urights) {
 		global $mydb;
+
+		$trace_no = isset($res['trace_no']) ? $res['trace_no'] : '';
 
 		$headerControls = '';
 
@@ -39,7 +42,7 @@ function setSOClickers($status, $jo_no, $urights) {
 							<span class="ui-icon ui-icon-disk"></span>Save Data
 						</button>
 
-						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.printJO(\'' . htmlspecialchars($jo_no, ENT_QUOTES, 'UTF-8') . '\', 0);">
+						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.printJO(\'' . htmlspecialchars($jo_no, ENT_QUOTES, 'UTF-8') . '\', 0, \'' . htmlspecialchars($trace_no, ENT_QUOTES, 'UTF-8') . '\', \'' . (int)$bid . '\');">
 							<span class="ui-icon ui-icon-print"></span>Print Job Order
 						</button>
 
@@ -88,7 +91,7 @@ function setSOClickers($status, $jo_no, $urights) {
 					';
 				}
 				$headerControls .= '
-						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.printJO(\'' . htmlspecialchars($jo_no, ENT_QUOTES, 'UTF-8') . '\', 0);">
+						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.printJO(\'' . htmlspecialchars($jo_no, ENT_QUOTES, 'UTF-8') . '\', 0, \'' . htmlspecialchars($trace_no, ENT_QUOTES, 'UTF-8') . '\');">
 							<span class="ui-icon ui-icon-print"></span>Print Job Order
 						</button>
 
@@ -463,6 +466,17 @@ function setSOClickers($status, $jo_no, $urights) {
 		<div class="jo-detail-section">
 			<div class="jo-detail-heading">
 				<span>CUSTOMER DETAILS</span>
+
+				<?php if (
+					$status == 'Active' ||
+					$status == 'Received' ||
+					$status == 'On-going Repair'
+				) { ?>
+					<button type="button"
+							class="jo-add-button"
+							onclick="parent.showCustomerInfo();"
+							title="Add Customer Information">+</button>
+				<?php } ?>
 			</div>
 		</div>
 		<table border="0" cellpadding="0" cellspacing="1" width=100% style="background-color: #f3f2f2;">

@@ -74,6 +74,8 @@ function addItem() {
         title: "Add Item",
         width: 600,
         resizable: false,
+        show: { effect: "fade", duration: 200 },
+        hide: { effect: "fade", duration: 200 },
         modal: true,
         buttons: [
             {
@@ -216,6 +218,8 @@ function addService() {
     $serviceEntry.dialog({
         title: "Add Service",
         width: 600,
+        show: { effect: "fade", duration: 200 },
+        hide: { effect: "fade", duration: 200 },
         resizable: false,
         modal: true,
         buttons: [
@@ -1436,6 +1440,8 @@ function viewJOComment() {
             $dialog.dialog({
                 title: "JO Comments - " + jo_no,
                 width: 520,
+                show : { effect: "fade", duration: 200 },
+                hide : { effect: "fade", duration: 200 },
                 height: dialogHeight,
                 modal: true,
                 resizable: false,

@@ -456,7 +456,7 @@ function showJO() {
 	closeMainMenu();
 	var txtHTML = "<iframe id='frmcust' frameborder=0 width='100%' height='100%' src='jo.list.php?sid="+Math.random()+"'></iframe>";
 	$("#jolist").html(txtHTML);
-	$("#jolist").dialog({title: "Job Order Summary", width: xWidth, height: 600,resizable: false, show: 'fade', modal: false }).dialogExtend({
+	$("#jolist").dialog({title: "Job Order Summary", width: xWidth, height: 600,resizable: false, show: 'fade', hide: 'fade', modal: false }).dialogExtend({
 		"closable" : true,
 	    "maximizable" : false,
 	    "minimizable" : true
@@ -465,7 +465,7 @@ function showJO() {
 function printTerms() {
 	var txtHTML = "<iframe id='frmcust' frameborder=0 width='100%' height='100%' src='print/jo.terms.php?sid="+Math.random()+"'></iframe>";
 	$("#joprint").html(txtHTML);
-	$("#joprint").dialog({title: "Terms & Conditions", width: 850, height: 700,resizable: false, show: 'fade', modal: true }).dialogExtend({
+	$("#joprint").dialog({title: "Terms & Conditions", width: 850, height: 700,resizable: false, show: 'fade', hide: 'fade', modal: true }).dialogExtend({
 		"closable" : true,
 	    "maximizable" : false,
 	    "minimizable" : true
@@ -525,51 +525,19 @@ function callJOFunction(functionName) {
 	}
 }
 
-// function printJO(jo_no, rePrint) {
-//     console.log("JO Number:", jo_no);
-//     console.log("Reprint:", rePrint);
+function printJO(jo_no, rePrint, trace_no, branch) {
+    var printUrl = "print/jo.print.php"
+        + "?jo_no=" + encodeURIComponent(jo_no)
+        + "&rePrint=" + encodeURIComponent(rePrint || 0)
+        + "&trace_no=" + encodeURIComponent(trace_no || '')
+        + "&branch=" + encodeURIComponent(branch || '')
+        + "&sid=" + Math.random();
 
-//     if (!jo_no) {
-//         alert("Please save the Job Order first.");
-//         return;
-//     }
-
-//     var printUrl = "print/jo.print.php?jo_no=" +
-//         encodeURIComponent(jo_no) +
-//         "&rePrint=" + encodeURIComponent(rePrint || 0) +
-//         "&sid=" + Math.random();
-
-//     // Access the print container in the parent index.php
-//     var $printDialog = parent.$("#joprint");
-
-//     console.log("Print dialog element:", $printDialog.length);
-
-//     if (!$printDialog.length) {
-//         console.error("#joprint was not found in parent page.");
-//         return;
-//     }
-
-//     $printDialog.html(
-//         "<iframe frameborder='0' " +
-//         "style='width:100%;height:100%;border:0;' " +
-//         "src='" + printUrl + "'></iframe>"
-//     );
-
-//     $printDialog.dialog({
-//         title: "PRINT >> JOB ORDER",
-//         width: 850,
-//         height: 700,
-//         resizable: true,
-//         modal: true,
-//         autoOpen: true
-//     });
-
-//     // Use the parent's jQuery UI dialog
-//     $printDialog.dialog("open");
-// }
-
-function printJO(jo_no, rePrint) {
-	window.open("print/jo.print.php?jo_no=" + jo_no + "&rePrint=" + (rePrint || 0) + "&sid=" + Math.random(), "Inventory Stockcard", "location=1,status=1,scrollbars=1,width=640,height=720");
+    window.open(
+        printUrl,
+        "Inventory Stockcard",
+        "location=1,status=1,scrollbars=1,width=640,height=720"
+    );
 }
 
 /* Service */
@@ -1191,13 +1159,33 @@ function showCustProfiles(mod) {
 }
 
 function showCustomerInfo(fid) {
-	var txtHTML = "<iframe id='frmcust' frameborder=0 width='100%' height='100%' src='customer.details.php?fid="+fid+"&mod=1&sid="+Math.random()+"'></iframe>";
-	$("#customerdetails").html(txtHTML);
-	$("#customerdetails").dialog({title: "Customers Info", width: 1024, height: 450, resizable: false, show: 'fade', modal: true }).dialogExtend({
-		"closable" : true,
-	    "maximizable" : false,
-	    "minimizable" : true
-	});
+    var url = "customer.details.php?mod=1&sid=" + Math.random();
+
+    // Add customer ID only when provided
+    if (typeof fid !== "undefined" && fid !== null && fid !== "") {
+        url += "&fid=" + encodeURIComponent(fid);
+    }
+
+    var txtHTML =
+        "<iframe id='frmcust' frameborder='0' " +
+        "width='100%' height='100%' src='" + url + "'></iframe>";
+
+    $("#customerdetails").html(txtHTML);
+
+    $("#customerdetails").dialog({
+        title: (typeof fid !== "undefined" && fid !== null && fid !== "")
+            ? "Edit Customer Information"
+            : "Add Customer Information",
+        width: 1024,
+        height: 450,
+        resizable: false,
+        show: "fade",
+        modal: true
+    }).dialogExtend({
+        closable: true,
+        maximizable: false,
+        minimizable: true
+    });
 }
 
 function addCustomer() {
