@@ -146,6 +146,7 @@ $unitProcessor = jo_field($header, 'unit_processor', '');
 $unitRam = jo_field($header, 'unit_ram', '');
 $unitMotherboard = jo_field($header, 'unit_motherboard', '');
 $remarks = jo_field($header, 'remarks', '');
+$notes = jo_field($header, 'notes', '');
 $action_taken = jo_field($header, 'action_taken', '');
 $status = jo_field($header, 'status', 'Active');
 
@@ -182,6 +183,37 @@ if ($grandTotal <= 0) {
     $grandTotal = $partsTotal + $laborTotal;
 }
 
+/* Payment history for this Job Order */
+$paymentRows = array();
+$paymentTotal = 0;
+
+if ($traceNo !== '') {
+    $safePaymentTraceNo = myDB::escapeString($traceNo);
+
+    $paymentSql = "
+        SELECT
+            DATE_FORMAT(date_created, '%m/%d/%Y') AS payment_date,
+            payment_type,
+            payment_method,
+            amount
+        FROM jo_payments
+        WHERE jo_no = '{$joNoSql}'
+          AND branch = '{$branchSql}'
+          AND trace_no = '{$safePaymentTraceNo}'
+        ORDER BY date_created ASC, payment_id ASC
+    ";
+
+    $paymentResult = myDB::dbquery($paymentSql);
+
+    if ($paymentResult !== false) {
+        while ($payment = $paymentResult->fetch_assoc()) {
+            $paymentRows[] = $payment;
+            $paymentTotal += (float)$payment['amount'];
+        }
+
+        $paymentResult->free();
+    }
+}
 
 $mpdf = new mPDF('utf-8', 'FOLIO-P', 0, 'dejavusans', 6, 6, 6, 6, 6, 6);
 $mpdf->SetTitle('Job Order ' . $joNo);
@@ -193,7 +225,7 @@ $html = '
 
     body {
         font-family: dejavusans, sans-serif;
-        font-size: 7pt;
+        font-size: 6.5pt;
         color: #243247;
         margin: 0;
         padding: 0;
@@ -439,28 +471,35 @@ $html = '
 </table>
 <div style="margin-bottom:3px;"></div>
 <div class="section">UNIT / DEVICE DETAILS</div>
-<table width="100%" cellpadding="6" cellspacing="0" class="panel">
+<table width="100%" cellpadding="3" cellspacing="0" class="panel">
 <tr>
     <td width="33.3%"><div class="label">DEVICE / UNIT NAME</div><div class="value">' . jo_h($unitName ?: '—') . '</div></td>
-    <td width="33.3%"><div class="label">CATEGORY</div><div class="value">' . $deviceType . '</div></td>
-    <td width="33.3%"><div class="label">MODEL</div><div class="value">' . jo_h($unitModel ?: '—') . '</div></td>
+    <td width="22.2%"><div class="label">MODEL</div><div class="value">' . jo_h($unitModel ?: '—') . '</div></td>
+    <td width="22.2%"><div class="label">CATEGORY</div><div class="value">' . $deviceType . '</div></td>
+    <td width="22.2%"><div class="label">WARRANTY STATUS</div>' . jo_h($unitWarranty ?: '—') . '</td>
 </tr>
 <tr>
     <td><div class="label">PURCHASE DATE</div>' . jo_h($unitPurchaseDate ?: '—') . '</td>
-    <td><div class="label">WARRANTY STATUS</div>' . jo_h($unitWarranty ?: '—') . '</td>
     <td><div class="label">CHARGER / ACCESSORIES</div>' . jo_h($unitCharger ?: '—') . '</td>
-</tr>
-<tr>
-    <td><div class="label">LCD / LED</div>' . jo_h($unitLcd ?: '—') . '</td>
-    <td><div class="label">BATTERY</div>' . jo_h($unitBattery ?: '—') . '</td>
     <td><div class="label">MOTHERBOARD</div>' . jo_h($unitMotherboard ?: '—') . '</td>
+    <td><div class="label">LCD / LED</div>' . jo_h($unitLcd ?: '—') . '</td>
+</tr>
+ <tr>
+    <td><div class="label">BATTERY</div>' . jo_h($unitBattery ?: '—') . '</td>
+    <td><div class="label">CAMERA</div>' . jo_h($unitCamera ?: '—') . '</td>
+    <td><div class="label">SPEAKER</div>' . jo_h($unitSpeaker ?: '—') . '</td>
+    <td><div class="label">TOUCHPAD</div>' . jo_h($unitTouchpad ?: '—') . '</td>
 </tr>';
     if($deviceCat != '1') {
     $html .= '<tr>
                 <td><div class="label">RAM</div>' . jo_h($unitRam ?: '—') . '</td>
                 <td><div class="label">HDD / SSD</div>' . jo_h($unitStorage ?: '—') . '</td>
                 <td><div class="label">PROCESSOR</div>' . jo_h($unitProcessor ?: '—') . '</td>
-            </tr>';
+                <td><div class="label">KEYBOARD</div>' . jo_h($unitKeyboard ?: '—') . '</td>
+
+            </tr>
+           
+            ';
     }
 
     $html .= '</table>
@@ -596,27 +635,112 @@ $html .= '
 </table>
 
 <htmlpagefooter name="myfooter">
-	<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+    <table width="100%" cellpadding="0" cellspacing="0"
+           style="margin-top:8px;">
         <tr>
             <td width="52%" valign="top" style="padding-right:10px;">
-                <div class="section">UNIT HISTORY / CUSTOMER CONCERN</div>
-                <div class="panel" style="min-height:55px;">' . nl2br(jo_h($remarks ?: 'No history recorded.')) . '</div>
-                <br/>                
+                <div class="section">PAYMENT HISTORY</div>
+
+                <table width="100%" cellpadding="4" cellspacing="0"
+                       border="1"
+                       style="border-collapse:collapse;font-size:7pt;">
+                    <tr>
+                        <th width="25%">DATE</th>
+                        <th width="45%">TYPE / METHOD</th>
+                        <th width="30%" align="right">AMOUNT</th>
+                    </tr>
+';
+
+/* Payment history rows */
+if (count($paymentRows) > 0) {
+    foreach ($paymentRows as $payment) {
+        $paymentDescription =
+            jo_field($payment, 'payment_type', '') .
+            ' / ' .
+            jo_field($payment, 'payment_method', '');
+
+        $html .= '
+            <tr>
+                <td>' . jo_h($payment['payment_date']) . '</td>
+                <td>' . jo_h($paymentDescription) . '</td>
+                <td align="right">₱ ' .
+                    jo_money($payment['amount']) . '
+                </td>
+            </tr>';
+    }
+} else {
+    $html .= '
+        <tr>
+            <td colspan="3" align="center">
+                No payments recorded.
             </td>
-            <td width="48%" valign="top">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr><td class="total-label">Total Parts Cost</td><td class="total-value">₱ ' . jo_money($partsTotal) . '</td></tr>
-                    <tr><td class="total-label">Service / Labor Cost</td><td class="total-value">₱ ' . jo_money($laborTotal) . '</td></tr>
-                    <tr><td class="grand-label">TRANSACTION TOTAL</td><td class="grand-value">₱ ' . jo_money($grandTotal) . '</td></tr>
+        </tr>';
+}
+
+/* Total paid */
+$html .= '
+                    <tr>
+                        <td colspan="2">
+                            <strong>TOTAL PAID</strong>
+                        </td>
+                        <td align="right">
+                            <strong>₱ ' .
+                            jo_money($paymentTotal) . '</strong>
+                        </td>
+                    </tr>
                 </table>
+
+                <br />
+
+                <div class="section">UNIT HISTORY / CUSTOMER CONCERN</div>
+                <div class="panel" style="min-height:55px;" colspan="3"s>' .
+                    nl2br(jo_h(
+                        $remarks !== '' ? $remarks : 'No history recorded.'
+                    )) . '
+                </div>
+            </td>
+
+            <td width="48%" valign="top" style="padding-top:30px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="total-label">Total Parts Cost</td>
+                        <td class="total-value">₱ ' .
+                            jo_money($partsTotal) . '
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="total-label">Service / Labor Cost</td>
+                        <td class="total-value">₱ ' .
+                            jo_money($laborTotal) . '
+                        </td>
+                    </tr>
+                     <tr>
+                        <td class="grand-label">TRANSACTION TOTAL</td>
+                        <td class="grand-value">₱ ' .
+                            jo_money($grandTotal) . '
+                        </td>
+                    </tr>
+                    <tr>
+                        <td height="5"></td>
+                        <td height="5">&nbsp;</td>
+                    </tr>
+                </table>
+                <div class="section" style="text-align: center; margin-top: 10px;">
+                    <strong>REMARKS</strong>
+                </div>
+                <div class="panel" style="min-height:55px;" colspan="3"s>' .
+                    nl2br(jo_h(
+                        $notes !== '' ? $notes : 'No notes recorded.'
+                    )) . '
+                </div>
             </td>
         </tr>
     </table>
 </htmlpagefooter>
 
-
 <sethtmlpagefooter name="myfooter" value="on" />
 ';
+
 
 $mpdf->WriteHTML($html);
 $mpdf->Output('JO-' . preg_replace('/[^A-Za-z0-9_-]/', '', (string)$joNo) . '.pdf', 'I');

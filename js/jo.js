@@ -14,7 +14,6 @@ function computeItemAmount() {
     parent.$("#itemAmountDue").val(parent.kSeparator(amountdue.toFixed(2)));
 }
 
-
 function computeTransactionTotal() {
     var parts = parseFloat(parent.stripComma($("#pgrandTotal").val() || "0")) || 0;
     var labor = parseFloat(parent.stripComma($("#laborTotal").val() || "0")) || 0;
@@ -22,7 +21,6 @@ function computeTransactionTotal() {
     var total = parts + labor;
     $("#grandTotal").val(parent.kSeparator(total.toFixed(2)));
 }
-
 
 function saveLaborTotal() {
     var jo_no = $("#jo_no").val();
@@ -58,7 +56,6 @@ function saveLaborTotal() {
         },
     });
 }
-
 
 function addItem() {
     var $p = parent.$;
@@ -384,11 +381,11 @@ function computeServiceAmount() {
     $p("#serviceAmountDue").val(amountDue.toFixed(2));
 }
 
-
 function openReceivePayment() {
     var $p = parent.$;
     var frameWindow = window;
     var joNo = $("#jo_no").val();
+    var traceNo = $("#trace_no").val();
 
     if (!joNo) {
         parent.sendErrorMessage("Please save the Job Order first.");
@@ -424,6 +421,21 @@ function openReceivePayment() {
 						'<div style="clear:both;"></div>' +
 					'</div>' +
 				'</div>' +
+                
+                '<div id="joPaymentHistory" style="' +
+                    'margin-bottom:12px;' +
+                    'border:1px solid #ddd;' +
+                    'border-radius:4px;' +
+                    'padding:10px;' +
+                    'box-sizing:border-box;' +
+                '">' +
+                    '<b style="display:block;margin-bottom:8px;">PAYMENT HISTORY</b>' +
+                    '<div id="joPaymentHistoryContent" style="' +
+                        'max-height:150px;overflow-y:auto;' +
+                    '">' +
+                        '<div style="color:#777;">Loading payment history...</div>' +
+                    '</div>' +
+                '</div>' +
 
                 '<div id="payPreviewRow" style="' +
                     'display:none;' +
@@ -576,9 +588,12 @@ function openReceivePayment() {
             $dialog.find("#payMethod").val("Cash");
             $dialog.find("#payMessage").text("");
 
+            // Load the payment history.
+            loadJOPaymentHistory($dialog, joNo, traceNo);
+
             $dialog.dialog({
                 title: "Receive Payment - JO " + joNo,
-                width: 440,
+                width: 540,
                 modal: true,
                 resizable: false,
                 buttons: [
@@ -716,6 +731,254 @@ function openReceivePayment() {
     });
 }
 
+function loadJOPaymentHistory($dialog, joNo, traceNo, targetId) {
+    var $p = parent.$;
+
+    targetId = targetId || "#joPaymentHistoryContent";
+
+    function money(value) {
+        var number = parseFloat(value);
+
+        if (isNaN(number)) {
+            number = 0;
+        }
+
+        return number.toFixed(2);
+    }
+
+    function escapePaymentText(value) {
+        return $p("<div>").text(
+            value == null ? "" : String(value)
+        ).html();
+    }
+
+    $dialog.find(targetId).html(
+        '<div style="color:#777;">Loading payment history...</div>'
+    );
+
+    $p.ajax({
+        url: "jo.datacontrol.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            mod: "retrievePaymentHistory",
+            jo_no: joNo,
+            trace_no: traceNo,
+            sid: Math.random()
+        },
+        success: function(result) {
+            var html = "";
+
+            console.log("Payment history response:", result);
+
+            if (!result.success) {
+                console.error("Payment history server message:", result.message);
+                html = '<div style="color:#b00020;">' +
+                    'Unable to load payment history.' +
+                    '</div>';
+            } else if (!result.data || result.data.length === 0) {
+                html = '<div style="color:#777;">' +
+                    'No payments recorded yet.' +
+                    '</div>';
+            } else {
+                html += '<table style="' +
+                    'width:100%;border-collapse:collapse;' +
+                    'font-size:11px;">';
+
+                html += '<thead><tr style="background:#eee;">' +
+                    '<th style="padding:5px;text-align:left;">DATE</th>' +
+                    '<th style="padding:5px;text-align:left;">TYPE / METHOD</th>' +
+                    '<th style="padding:5px;text-align:right;">AMOUNT</th>' +
+                    '</tr></thead><tbody>';
+
+                $p.each(result.data, function(i, payment) {
+                    html += '<tr>' +
+                        '<td style="padding:5px;border-bottom:1px solid #ddd;">' +
+                        escapePaymentText(payment.payment_date) +
+                        '</td>' +
+                        '<td style="padding:5px;border-bottom:1px solid #ddd;">' +
+                        escapePaymentText(payment.payment_type) +
+                        '<br><span style="color:#777;">' +
+                        escapePaymentText(payment.payment_method) +
+                        '</span></td>' +
+                        '<td style="padding:5px;text-align:right;' +
+                        'border-bottom:1px solid #ddd;">' +
+                        money(payment.amount) +
+                        '</td></tr>';
+                });
+
+                html += '</tbody></table>';
+            }
+
+            $dialog.find(targetId).html(html);
+        },
+        error: function(xhr, textStatus, errorThrown) {
+            console.log("Payment history HTTP status:", xhr.status);
+            console.log("Payment history status:", textStatus);
+            console.log("Payment history error:", errorThrown);
+            console.log("Payment history response:", xhr.responseText);
+
+            $dialog.find(targetId).html(
+                '<div style="color:#b00020;">' +
+                'Error ' + xhr.status + ': ' +
+                textStatus +
+                '</div>'
+            );
+        }
+    });
+}
+
+
+function viewPaymentHistory() {
+    var $p = parent.$;
+    var joNo = $("#jo_no").val();
+    var traceNo = $("#trace_no").val();
+
+    if (!joNo) {
+        parent.sendErrorMessage("Please save the Job Order first.");
+        return;
+    }
+
+    var $dialog = $p("#joPaymentHistoryDialog");
+
+    if (!$dialog.length) {
+        $p("body").append(
+            '<div id="joPaymentHistoryDialog" style="display:none;font-family:Arial,sans-serif;font-size:13px;">' +
+
+                '<div style="padding:10px;border:1px solid #ddd;' +
+                    'border-radius:4px;background:#fafafa;margin-bottom:12px;">' +
+
+                    '<div style="margin-bottom:8px;">' +
+                        '<b>Transaction Total:</b>' +
+                        '<span id="historyGrandTotal" style="float:right;">0.00</span>' +
+                    '</div>' +
+
+                    '<div style="margin-bottom:8px;">' +
+                        '<b>Total Paid:</b>' +
+                        '<span id="historyTotalPaid" style="float:right;">0.00</span>' +
+                    '</div>' +
+
+                    '<hr style="border:0;border-top:1px solid #ddd;">' +
+
+                    '<div style="font-size:14px;">' +
+                        '<b>Remaining Balance:</b>' +
+                        '<b id="historyBalance" style="float:right;">0.00</b>' +
+                        '<div style="clear:both;"></div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div style="border:1px solid #ddd;border-radius:4px;' +
+                    'padding:10px;box-sizing:border-box;">' +
+                    '<b style="display:block;margin-bottom:8px;">PAYMENT HISTORY</b>' +
+                    '<div id="historyPaymentContent" style="max-height:250px;overflow-y:auto;">' +
+                        '<div style="color:#777;">Loading payment history...</div>' +
+                    '</div>' +
+                '</div>' +
+
+            '</div>'
+        );
+
+        $dialog = $p("#joPaymentHistoryDialog");
+    }
+
+    function money(value) {
+        var number = parseFloat(value);
+
+        if (isNaN(number)) {
+            number = 0;
+        }
+
+        return number.toFixed(2);
+    }
+
+    $dialog.find("#historyGrandTotal").text("0.00");
+    $dialog.find("#historyTotalPaid").text("0.00");
+    $dialog.find("#historyBalance").text("0.00");
+
+    $dialog.find("#historyPaymentContent").html(
+        '<div style="color:#777;">Loading payment history...</div>'
+    );
+
+    $dialog.dialog({
+        title: "Payment History - JO " + joNo,
+        width: 540,
+        modal: true,
+        show: { effect: "fade", duration: 200 },
+        hide: { effect: "fade", duration: 200 },
+        resizable: false,
+        buttons: [
+            {
+                text: "Close",
+                click: function() {
+                    $p(this).dialog("close");
+                }
+            }
+        ]
+    });
+
+    $p.ajax({
+        url: "jo.datacontrol.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            mod: "getPaymentSummary",
+            jo_no: joNo,
+            trace_no: traceNo,
+            sid: Math.random()
+        },
+        success: function(result) {
+            if (!result.success) {
+                $dialog.find("#historyPaymentContent").html(
+                    '<div style="color:#b00020;">Unable to load payment summary.</div>'
+                );
+                return;
+            }
+
+            $dialog.find("#historyGrandTotal").text(
+                money(result.grandTotal)
+            );
+
+            $dialog.find("#historyTotalPaid").text(
+                money(result.totalPaid)
+            );
+
+            $dialog.find("#historyBalance").text(
+                money(result.remainingBalance)
+            );
+        },
+        error: function(xhr, status, error) {
+            console.error("Payment summary error:", status, error);
+            $dialog.find("#historyPaymentContent").html(
+                '<div style="color:#b00020;">Unable to load payment summary.</div>'
+            );
+        }
+    });
+
+    // Reuse the existing payment history loader.
+    // It expects #joPaymentHistoryContent, so temporarily
+    // provide that target inside the read-only dialog.
+    $dialog.find("#historyPaymentContent").attr(
+        "id", "joPaymentHistoryContent"
+    );
+
+    loadJOPaymentHistory(
+    $dialog,
+    joNo,
+    traceNo,
+    "#historyPaymentContent"
+);
+
+    $dialog.find("#joPaymentHistoryContent").attr(
+        "id", "historyPaymentContent"
+    );
+}
+
+
+function escapePaymentText(value) {
+    return $("<div>").text(
+        value == null ? "" : String(value)
+    ).html();
+}
 
 function deleteItem() {
     var table = $("#details").DataTable();
@@ -768,7 +1031,6 @@ function deleteItem() {
         }
     });
 }
-
 
 function updateItem() {
 	var table = $("#details").DataTable();
@@ -907,7 +1169,11 @@ function saveJOHeader() {
 				visual_battery: $("#visual_battery").val(),  
 				visual_ram: $("#visual_ram").val(),  
 				visual_wifi: $("#visual_wifi").val(),  
+				visual_fingerprint: $("#visual_fingerprint").val(),  
+				visual_volume_buttons: $("#visual_volume_buttons").val(),
+                visual_power_button: $("#visual_power_button").val(),  
 				remarks: $("#remarks").val(), 
+                notes: $("#notes").val(),
 				action_taken: $("#action_taken").val(), 
 				sid: Math.random() }, 
 				function (data) {
@@ -1103,7 +1369,6 @@ function printLetterSO() {
 	parent.printLetterSO(jo_no);
 }
 
-
 function viewJOComment() {
 
     var $p = parent.$;
@@ -1155,27 +1420,60 @@ function viewJOComment() {
 
 	var dialogHeight = Math.min(550, $p(window).height() - 40);
 
-    $dialog.dialog({
-		title: "JO Comments - " + jo_no,
-		width: 520,
-		height: dialogHeight,
-		modal: true,
-		resizable: false,
-		buttons: [
-			{
-				text: "Save Comment",
-				click: function() {
-					saveJOCommentDialog();
-				}
-			},
-			{
-				text: "Close",
-				click: function() {
-					$dialog.dialog("close");
-				}
-			}
-		]
-	});
+    $p.ajax({
+        url: "jo.datacontrol.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            mod: "checkJOCompleted",
+            jo_no: jo_no,
+            trace_no: trace_no,
+            sid: Math.random()
+        },
+        success: function(data) {
+            var isCompleted = data.completed == 1;
+
+            $dialog.dialog({
+                title: "JO Comments - " + jo_no,
+                width: 520,
+                height: dialogHeight,
+                modal: true,
+                resizable: false,
+                buttons: [
+                    {
+                        text: "Save Comment",
+                        disabled: isCompleted,
+                        click: function() {
+                            if (isCompleted) {
+                                parent.sendErrorMessage(
+                                    "This Job Order is already Completed."
+                                );
+                                return;
+                            }
+
+                            saveJOCommentDialog();
+                        }
+                    },
+                    {
+                        text: "Close",
+                        click: function() {
+                            $dialog.dialog("close");
+                        }
+                    }
+                ]
+            });
+
+            if (isCompleted) {
+                $p("#joCommentStatus, #joCommentText").prop("disabled", true);
+            } else {
+                $p("#joCommentStatus, #joCommentText").prop("disabled", false);
+            }
+        },
+        error: function(xhr) {
+            console.error("JO status check error:", xhr.responseText);
+            parent.sendErrorMessage("Unable to check JO status.");
+        }
+    });
 
     $p("#joCommentText").val("");
 
@@ -1213,7 +1511,6 @@ function viewJOComment() {
 
     loadJOCommentHistory(jo_no, trace_no);
 }
-
 
 function loadJOCommentHistory(jo_no, trace_no) {
 
@@ -1305,7 +1602,6 @@ function loadJOCommentHistory(jo_no, trace_no) {
     });
 }
 
-
 function saveJOCommentDialog() {
 
     var $p = parent.$;
@@ -1366,6 +1662,49 @@ function saveJOCommentDialog() {
         },
         complete: function() {
             $buttons.prop("disabled", false);
+        }
+    });
+}
+
+function finalized() {
+    var jo_no = $("#jo_no").val();
+    var trace_no = $("#trace_no").val();
+
+    if (!jo_no || !trace_no) {
+        parent.sendErrorMessage("Please save the Job Order first.");
+        return;
+    }
+
+    if (!confirm("Are you sure you want to mark this Job Order as Completed?")) {
+        return;
+    }
+
+    $.ajax({
+        url: "jo.datacontrol.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            mod: "finalized",
+            jo_no: jo_no,
+            trace_no: trace_no,
+            sid: Math.random()
+        },
+        success: function(result) {
+            if (!result.success) {
+                parent.sendErrorMessage(
+                    result.message || "Unable to complete the Job Order."
+                );
+                return;
+            }
+
+            parent.alert("Job Order marked as Completed.");
+            parent.viewJO(jo_no);
+        },
+        error: function(xhr) {
+            console.error("Finalize JO error:", xhr.responseText);
+            parent.sendErrorMessage(
+                "Unable to complete the Job Order. Check the browser console."
+            );
         }
     });
 }

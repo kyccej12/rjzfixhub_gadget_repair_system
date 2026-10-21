@@ -50,6 +50,9 @@ function setSOClickers($status, $jo_no, $urights) {
 						 <button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'openReceivePayment\');">
 							<span class="ui-icon ui-icon-cart"></span>Receive Payment
 						</button>
+						<button type="button"  class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'finalized\');">
+    						<span class="ui-icon ui-icon-check"></span>Mark as Complete
+						</button>
 
 					';
 			break;
@@ -91,6 +94,10 @@ function setSOClickers($status, $jo_no, $urights) {
 
 						<button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'viewJOComment\');">
 							<span class="ui-icon ui-icon-comment"></span>View Comment
+						</button>
+						
+						 <button type="button" class="ui-button ui-widget ui-corner-all" onclick="parent.callJOFunction(\'viewPaymentHistory\');">
+							<span class="ui-icon ui-icon-cart"></span>View Payment History
 						</button>
 					';
 			break;
@@ -176,7 +183,8 @@ function setSOClickers($status, $jo_no, $urights) {
 				$("#visual_lcd, #visual_usb, #visual_bitlocker, #visual_charger, " +
 				"#visual_storage, #visual_camera, #visual_touchpad, " +
 				"#visual_charging, #visual_hdmi, #visual_bios, " +
-				"#visual_keyboard, #visual_battery, #visual_ram, #visual_wifi" ).autocomplete({
+				"#visual_keyboard, #visual_battery, #visual_ram, #visual_wifi, " +
+				"#visual_fingerprint, #visual_volume_buttons, #visual_power_button" ).autocomplete({
 					source: visualResults, minLength: 0
 				}).focus(function() {
 					$(this).data("uiAutocomplete").search($(this).val());
@@ -207,7 +215,9 @@ function setSOClickers($status, $jo_no, $urights) {
 				"#visual_lcd, #visual_usb, #visual_bitlocker, #visual_charger, " +
 				"#visual_storage, #visual_screws, #visual_camera, #visual_touchpad, " +
 				"#visual_charging, #visual_speaker, #visual_hdmi, #visual_bios, " +
-				"#visual_keyboard, #visual_battery, #visual_ram, #visual_wifi, #laborTotal, #remarks")
+				"#visual_keyboard, #visual_battery, #visual_ram, #visual_wifi, " +
+				"#visual_fingerprint, #visual_volume_buttons, #visual_power_button, " +
+				"#laborTotal, #remarks")
 				.on("change", function() {
 					saveJOHeader();
 			});
@@ -372,7 +382,7 @@ function setSOClickers($status, $jo_no, $urights) {
 		.unit-details-fieldset {
 			width: 100%;
 			height: 100%;
-			min-height: 200px;
+			min-height: 220px;
 			box-sizing: border-box;
 			border: 1px solid #b8c5d1;
 			border-radius: 5px;
@@ -734,6 +744,13 @@ function setSOClickers($status, $jo_no, $urights) {
 												<input type="text" name="visual_screws" id="visual_screws" class="gridInput" style="width:100%;" value="<?php echo $res['visual_screws']?>">
 											</td>
 										</tr>
+										<tr><td height=2></td></tr>
+										<tr>
+											<td class="bareBold">Power Button:</td>
+											<td>
+												<input type="text" name="visual_power_button" id="visual_power_button" class="gridInput" style="width:100%;" value="<?php echo $res['visual_power_button']?>">
+											</td>
+										</tr>
 									</table>
 								</td>
 								<!-- RIGHT SIDE -->
@@ -767,6 +784,20 @@ function setSOClickers($status, $jo_no, $urights) {
 												<td class="bareBold">Wi-Fi:</td>
 												<td>
 													<input type="text" name="visual_wifi" id="visual_wifi" class="gridInput" style="width:100%;" value="<?php echo $res['visual_wifi']?>">
+												</td>
+											</tr>
+											<tr><td height=2></td></tr>
+											<tr>
+												<td class="bareBold">Fingerprint:</td>
+												<td>
+													<input type="text" name="visual_fingerprint" id="visual_fingerprint" class="gridInput" style="width:100%;" value="<?php echo $res['visual_fingerprint']?>">
+												</td>
+											</tr>
+											<tr><td height=2></td></tr>
+											<tr>
+												<td class="bareBold">Volume Buttons:</td>
+												<td>
+													<input type="text" name="visual_volume_buttons" id="visual_volume_buttons" class="gridInput" style="width:100%;" value="<?php echo $res['visual_volume_buttons']?>">
 												</td>
 											</tr>
 										</tr>
@@ -910,11 +941,14 @@ function setSOClickers($status, $jo_no, $urights) {
 		</div>
 		<table width=100% class="td_content">
 			<tr>
-				<td width=50%>
+				<td width=60%>
+					
 					Unit History: <br/>
-					<textarea rows=4 type="text" id="remarks" style="width:90%;"><?php echo $res['remarks']; ?></textarea>
+					<textarea rows=4 type="text" id="remarks" style="width:100%;"><?php echo $res['remarks']; ?></textarea> <br />
+					Remarks: <br/>
+					<textarea rows=4 type="text" id="notes" style="width:100%;"><?php echo $res['notes']; ?></textarea>
 				</td>
-				<td align=right width=50% valign=top>
+				<td align=right width=40% valign=top>
 					Total Parts Cost : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type=text name="pgrandTotal" id="pgrandTotal" value="<?php echo number_format($res['pamount'],2); ?>" readonly> <br />
 					Service Cost : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type="text" name="laborTotal" id="laborTotal" value="<?php echo number_format($res['labor'], 2, '.', ''); ?>" oninput="computeTransactionTotal()" onchange="saveLaborTotal()" onblur="console.log('Service Cost field lost focus')" readonly> <br/>					
 					Transaction Total : &nbsp;&nbsp;<input style="width:200px;text-align:right;" type=text name="grandTotal" id="grandTotal" value="<?php echo number_format($res['amount'],2); ?>" readonly><br />
@@ -922,7 +956,8 @@ function setSOClickers($status, $jo_no, $urights) {
 					Remaining Balance : &nbsp;&nbsp;<input style="width:200px;text-align:right;font-weight:bold;" type="text" id="remainingBalance" value="<?php echo number_format(isset($res['remaining_balance']) ? $res['remaining_balance'] : 0,2); ?>"  readonly>
 				</td>
 			</tr>
-		</table>	
+		</table>
+			
 	</form>
 </div>
 <div id="queueingslip" style="display: none;"></div>

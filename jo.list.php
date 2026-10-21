@@ -49,7 +49,7 @@
 				"info": false,
 				"bSort": false,
 				"aoColumnDefs": [
-					{ className: "dt-body-center", "targets": [0,1,3,5,6] },
+					{ className: "dt-body-center", "targets": [0,1,4,5,7,8] },
 					{ "targets": [4], "visible": false }
 
 				]
@@ -150,13 +150,15 @@
 		<table class="cell-border" id="itemlist" style="font-size:11px;">
 			<thead>
 				<tr>
-					<th width=12%>JO #</th>
+					<th width=8%>JO #</th>
 					<th width=8%>JO DATE</th>
 					<th width=20%>CUSTOMER</th>
+					<th width=20%>ADDRESS</th>
+					<th width=10%>CONTACT NO</th>
 					<th width=10%>UNIT</th>
 					<th>HISTORY</th>
-					<th width=10%>AMOUNT TOTAL</th>
-					<th width=12%>STATUS</th>
+					<th width=8%>AMOUNT</th>
+					<th width=8%>STATUS</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -192,10 +194,12 @@
 						LPAD(a.jo_no,6,'0') AS jo,
 						DATE_FORMAT(a.jo_date,'%m/%d/%Y') AS sdate,
 						a.customer_name, 
+						a.customer_address,
+						a.customer_contactno,
 						IF(a.customer_code=0,
 						CONCAT(a.customer_name, '(Customer)'),
 						a.customer_name) AS customer,
-						b.model,
+						b.model, a.remarks,
 						b.brand,
 						concat(a.unit_name,'  ',a.unit_model) as unit,
 						FORMAT(a.amount,2) AS amount,
@@ -221,6 +225,8 @@
 								<td>$row[jo]</td>
 								<td>$row[sdate]</td>
 								<td>$row[customer_name]</td>
+								<td>$row[customer_address]</td>
+								<td>$row[customer_contactno]</td>
 								<td>$row[unit] </td>
 								<td>$row[remarks]</td>
 								<td>$row[amount]</td>

@@ -23,7 +23,7 @@ $(document).ready(function() {
 
 
     // Adjust if your application URL is different.
-  	var LOGIN_URL = "/rjzfixhub/login/index.php?expired=1";
+  	var LOGIN_URL = "/rjzfixhub/login/index.php?exception=1";
    	var ACTIVITY_URL = "/rjzfixhub/session.activity.php";
 
     var $dialog = $(
@@ -525,47 +525,51 @@ function callJOFunction(functionName) {
 	}
 }
 
+// function printJO(jo_no, rePrint) {
+//     console.log("JO Number:", jo_no);
+//     console.log("Reprint:", rePrint);
+
+//     if (!jo_no) {
+//         alert("Please save the Job Order first.");
+//         return;
+//     }
+
+//     var printUrl = "print/jo.print.php?jo_no=" +
+//         encodeURIComponent(jo_no) +
+//         "&rePrint=" + encodeURIComponent(rePrint || 0) +
+//         "&sid=" + Math.random();
+
+//     // Access the print container in the parent index.php
+//     var $printDialog = parent.$("#joprint");
+
+//     console.log("Print dialog element:", $printDialog.length);
+
+//     if (!$printDialog.length) {
+//         console.error("#joprint was not found in parent page.");
+//         return;
+//     }
+
+//     $printDialog.html(
+//         "<iframe frameborder='0' " +
+//         "style='width:100%;height:100%;border:0;' " +
+//         "src='" + printUrl + "'></iframe>"
+//     );
+
+//     $printDialog.dialog({
+//         title: "PRINT >> JOB ORDER",
+//         width: 850,
+//         height: 700,
+//         resizable: true,
+//         modal: true,
+//         autoOpen: true
+//     });
+
+//     // Use the parent's jQuery UI dialog
+//     $printDialog.dialog("open");
+// }
+
 function printJO(jo_no, rePrint) {
-    console.log("JO Number:", jo_no);
-    console.log("Reprint:", rePrint);
-
-    if (!jo_no) {
-        alert("Please save the Job Order first.");
-        return;
-    }
-
-    var printUrl = "print/jo.print.php?jo_no=" +
-        encodeURIComponent(jo_no) +
-        "&rePrint=" + encodeURIComponent(rePrint || 0) +
-        "&sid=" + Math.random();
-
-    // Access the print container in the parent index.php
-    var $printDialog = parent.$("#joprint");
-
-    console.log("Print dialog element:", $printDialog.length);
-
-    if (!$printDialog.length) {
-        console.error("#joprint was not found in parent page.");
-        return;
-    }
-
-    $printDialog.html(
-        "<iframe frameborder='0' " +
-        "style='width:100%;height:100%;border:0;' " +
-        "src='" + printUrl + "'></iframe>"
-    );
-
-    $printDialog.dialog({
-        title: "PRINT >> JOB ORDER",
-        width: 850,
-        height: 700,
-        resizable: true,
-        modal: true,
-        autoOpen: true
-    });
-
-    // Use the parent's jQuery UI dialog
-    $printDialog.dialog("open");
+	window.open("print/jo.print.php?jo_no=" + jo_no + "&rePrint=" + (rePrint || 0) + "&sid=" + Math.random(), "Inventory Stockcard", "location=1,status=1,scrollbars=1,width=640,height=720");
 }
 
 /* Service */

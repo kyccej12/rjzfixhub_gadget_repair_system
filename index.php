@@ -55,7 +55,7 @@ if ($o->exception != 0) {
 		<td colspan=3>
 			<table width="100%" height="100%" cellpadding=0 cellspacing=0 align="center" valign=middle>
 				<tr bgcolor="#0e5284">
-					<td align=center style="font-family: arial, helvetica, sans-serif; color: #fefefe; font-size: 11px; font-weight: bold;">&copy; Exclusively Developed for RJZ Fix Hub. All Rights Reserved 2026</td>
+					<td align=center style="font-family: arial, helvetica, sans-serif; color: #fefefe; font-size: 11px; font-weight: bold;">&copy; Exclusively Developed by RJZ Fix Hub. All Rights Reserved 2026</td>
 				</tr>
 			</table>
 		</td>

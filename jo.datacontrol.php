@@ -10,103 +10,98 @@ ini_set("display_errors","on");
 	}
 
 
-function updateAmount($jo_no, $labor = null, $trace_no = null) {
-    global $con, $bid;
+    function updateAmount($jo_no, $labor = null, $trace_no = null) {
+        global $con, $bid;
 
-    $jo = $con->escapeString($jo_no);
-    $branch = (int)$bid;
-    $trace = $con->escapeString($trace_no);
+        $jo = $con->escapeString($jo_no);
+        $branch = (int)$bid;
+        $trace = $con->escapeString($trace_no);
 
-    // Calculate parts total.
-    $parts = $con->getArray("
-        SELECT IFNULL(SUM(amount_due), 0)
-        FROM jo_details
-        WHERE jo_no = '$jo'
-         AND branch = '$branch'
-         AND trace_no = '$trace'
-    ");
-
-    $partsTotal = (float)$parts[0];
-
-    // Calculate labor total from services assigned to this JO and branch.
-    $services = $con->getArray("
-        SELECT IFNULL(SUM(amount_due), 0)
-        FROM jo_services
-        WHERE jo_no = '$jo'
-          AND branch = '$branch'
-          AND trace_no = '$trace'
-    ");
-
-    $serviceTotal = (float)$services[0];
-
-    // Keep compatibility with callers that explicitly pass a labor amount.
-    $laborTotal = ($labor !== null)
-        ? (float)$con->formatDigit($labor)
-        : $serviceTotal;
-
-    // Calculate transaction total.
-    $partsTotal = round($partsTotal, 2);
-    $laborTotal = round($laborTotal, 2);
-    $transactionTotal = round($partsTotal + $laborTotal, 2);
-
-    // Calculate payments received for this JO and branch.
-    $payments = $con->getArray("
-        SELECT IFNULL(SUM(amount), 0)
-        FROM jo_payments
-        WHERE jo_no = '$jo'
-          AND branch = '$branch'
+        // Calculate parts total.
+        $parts = $con->getArray("
+            SELECT IFNULL(SUM(amount_due), 0)
+            FROM jo_details
+            WHERE jo_no = '$jo'
+            AND branch = '$branch'
             AND trace_no = '$trace'
-    ");
-
-    $totalPaid = round((float)$payments[0], 2);
-
-    $remainingBalance = round($transactionTotal - $totalPaid, 2);
-
-    // Avoid negative balances caused by overpayment.
-    if ($remainingBalance < 0) {
-        $remainingBalance = 0;
-    }
-
-    // Update totals and balance.
-    // Do not overwrite Cancelled status.
-    if ($remainingBalance <= 0 && $transactionTotal > 0) {
-        $con->dbquery("
-            UPDATE jo_header
-            SET pamount = '$partsTotal',
-                labor = '$laborTotal',
-                amount = '$transactionTotal',
-                remaining_balance = '0.00',
-                status = 'Completed'
-            WHERE jo_no = '$jo'
-              AND branch = '$branch'
-              AND trace_no = '$trace'
-              AND status != 'Cancelled'
         ");
-    } else {
-        $con->dbquery("
-            UPDATE jo_header
-            SET pamount = '$partsTotal',
-                labor = '$laborTotal',
-                amount = '$transactionTotal',
-                remaining_balance = '$remainingBalance'
+
+        $partsTotal = (float)$parts[0];
+
+        // Calculate labor total from services assigned to this JO and branch.
+        $services = $con->getArray("
+            SELECT IFNULL(SUM(amount_due), 0)
+            FROM jo_services
             WHERE jo_no = '$jo'
-              AND branch = '$branch'
-              AND trace_no = '$trace'
+            AND branch = '$branch'
+            AND trace_no = '$trace'
         ");
+
+        $serviceTotal = (float)$services[0];
+
+        // Keep compatibility with callers that explicitly pass a labor amount.
+        $laborTotal = ($labor !== null)
+            ? (float)$con->formatDigit($labor)
+            : $serviceTotal;
+
+        // Calculate transaction total.
+        $partsTotal = round($partsTotal, 2);
+        $laborTotal = round($laborTotal, 2);
+        $transactionTotal = round($partsTotal + $laborTotal, 2);
+
+        // Calculate payments received for this JO and branch.
+        $payments = $con->getArray("
+            SELECT IFNULL(SUM(amount), 0)
+            FROM jo_payments
+            WHERE jo_no = '$jo'
+            AND branch = '$branch'
+                AND trace_no = '$trace'
+        ");
+
+        $totalPaid = round((float)$payments[0], 2);
+
+        $remainingBalance = round($transactionTotal - $totalPaid, 2);
+
+        // Avoid negative balances caused by overpayment.
+        if ($remainingBalance < 0) {
+            $remainingBalance = 0;
+        }
+
+        // Update totals and balance.
+        // Do not overwrite Cancelled status.
+        if ($remainingBalance <= 0 && $transactionTotal > 0) {
+            $con->dbquery("
+                UPDATE jo_header
+                SET pamount = '$partsTotal',
+                    labor = '$laborTotal',
+                    amount = '$transactionTotal',
+                    remaining_balance = '0.00'
+                WHERE jo_no = '$jo'
+                AND branch = '$branch'
+                AND trace_no = '$trace'
+                AND status != 'Cancelled'
+            ");
+        } else {
+            $con->dbquery("
+                UPDATE jo_header
+                SET pamount = '$partsTotal',
+                    labor = '$laborTotal',
+                    amount = '$transactionTotal',
+                    remaining_balance = '$remainingBalance'
+                WHERE jo_no = '$jo'
+                AND branch = '$branch'
+                AND trace_no = '$trace'
+            ");
+        }
+
+        return array(
+            'partsTotal' => number_format($partsTotal, 2, '.', ''),
+            'laborTotal' => number_format($laborTotal, 2, '.', ''),
+            'grandTotal' => number_format($transactionTotal, 2, '.', ''),
+            'totalPaid' => number_format($totalPaid, 2, '.', ''),
+            'remainingBalance' => number_format($remainingBalance, 2, '.', '')
+        );
     }
-
-    return array(
-        'partsTotal' => number_format($partsTotal, 2, '.', ''),
-        'laborTotal' => number_format($laborTotal, 2, '.', ''),
-        'grandTotal' => number_format($transactionTotal, 2, '.', ''),
-        'totalPaid' => number_format($totalPaid, 2, '.', ''),
-        'remainingBalance' => number_format($remainingBalance, 2, '.', '')
-    );
-}
-
-
-
-
 
     switch($_REQUEST['mod']) {
         case "saveHeader":
@@ -147,8 +142,12 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
                             visual_bios = '$_POST[visual_bios]', 
                             visual_battery = '$_POST[visual_battery]', 
                             visual_ram = '$_POST[visual_ram]', 
-                            visual_wifi = '$_POST[visual_wifi]', 
+                            visual_wifi = '$_POST[visual_wifi]',
+                            visual_fingerprint = '$_POST[visual_fingerprint]',
+                            visual_volume_buttons = '$_POST[visual_volume_buttons]',
+                            visual_power_button = '$_POST[visual_power_button]', 
                             remarks = '".$con->escapeString(htmlentities($_POST['remarks']))."',
+                            notes = '".$con->escapeString(htmlentities($_POST['notes']))."',
                             updated_by = '$_SESSION[userid]' , 
                             updated_on = now() 
                             where jo_no = '$_POST[jo_no]';";
@@ -162,7 +161,7 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
                             unit_storage, unit_charger, unit_category, unit_processor, unit_ram, unit_motherboard,
                             visual_lcd, visual_usb, visual_bitlocker, visual_charger, visual_storage, visual_screws,
                             visual_camera, visual_touchpad, visual_charging, visual_speaker, visual_hdmi, visual_keyboard,
-                            visual_bios, visual_battery, visual_ram, visual_wifi, `status`, remarks,
+                            visual_bios, visual_battery, visual_ram, visual_wifi, visual_fingerprint, visual_volume_buttons, visual_power_button, `status`, remarks, notes,
                             trace_no,
                             created_by,
                             created_on) VALUES (
@@ -172,7 +171,7 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
                             '$_POST[unit_storage]', '$_POST[unit_charger]','$_POST[unit_category]','$_POST[unit_processor]','$_POST[unit_ram]','$_POST[unit_motherboard]',
                             '$_POST[visual_lcd]', '$_POST[visual_usb]','$_POST[visual_bitlocker]','$_POST[visual_charger]','$_POST[visual_storage]','$_POST[visual_screws]',
                             '$_POST[visual_camera]', '$_POST[visual_touchpad]','$_POST[visual_charging]','$_POST[visual_speaker]','$_POST[visual_hdmi]','$_POST[visual_keyboard]',
-                            '$_POST[visual_bios]', '$_POST[visual_battery]','$_POST[visual_ram]','$_POST[visual_wifi]','Active','".$con->escapeString(htmlentities($_POST['remarks']))."', 
+                            '$_POST[visual_bios]', '$_POST[visual_battery]','$_POST[visual_ram]','$_POST[visual_wifi]','$_POST[visual_fingerprint]','$_POST[visual_volume_buttons]','$_POST[visual_power_button]','Active','".$con->escapeString(htmlentities($_POST['remarks']))."', '".$con->escapeString(htmlentities($_POST['notes']))."', 
                             '$_POST[trace_no]', 
                             '$_SESSION[userid]', 
                             now());";
@@ -180,8 +179,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             $con->dbquery($queryString);
             echo str_pad($jono,6,'0',STR_PAD_LEFT);
         break;
-
-
                 
         case "savePayment":
 
@@ -353,8 +350,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             ));
 
         break;
-
-
         
         case "getPaymentSummary":
 
@@ -420,7 +415,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             ));
 
         break;
-
 
         case "addItem":
 
@@ -519,7 +513,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             echo json_encode($totals);
 
         break;
-
         
         case "updateLabor":
 
@@ -537,9 +530,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             }
 
         break;
-
-
-
         
         case "deleteLine":
         case "deleteServiceLine":
@@ -626,75 +616,72 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
 
         break;
 
-
-
-
-      case "check4print":
-
-        $jo_no = isset($_POST['jo_no'])
-            ? $con->escapeString($_POST['jo_no'])
-            : '';
-
-        $trace_no = isset($_POST['trace_no'])
-            ? $con->escapeString($_POST['trace_no'])
-            : '';
-
-        if ($jo_no == '' || $trace_no == '') {
-            echo "head";
-            break;
-        }
-
-        list($a) = $con->getArray("
-            SELECT COUNT(*)
-            FROM jo_header
-            WHERE jo_no = '$jo_no'
-            AND branch = '$bid'
-            AND trace_no = '$trace_no'
-        ");
-
-        if ($a > 0) {
-            echo "noerror";
-        } else {
-            echo "head";
-        }
-
-        break;
-
-        case "receivedJO":
+        case "check4print":
 
             $jo_no = isset($_POST['jo_no'])
-                ? (int)$_POST['jo_no']
-                : 0;
-
-            $userid = isset($_SESSION['userid'])
-                ? (int)$_SESSION['userid']
-                : 0;
-
-            $branch = (int)$bid;
+                ? $con->escapeString($_POST['jo_no'])
+                : '';
 
             $trace_no = isset($_POST['trace_no'])
                 ? $con->escapeString($_POST['trace_no'])
                 : '';
 
-            if ($jo_no <= 0) {
-                echo "ERROR: Invalid Job Order number.";
+            if ($jo_no == '' || $trace_no == '') {
+                echo "head";
                 break;
             }
 
-            $con->dbquery("
-                UPDATE jo_header
-                SET status = 'Received',
-                    updated_by = '$userid',
-                    updated_on = NOW()
+            list($a) = $con->getArray("
+                SELECT COUNT(*)
+                FROM jo_header
                 WHERE jo_no = '$jo_no'
-                AND branch = '$branch'
+                AND branch = '$bid'
                 AND trace_no = '$trace_no'
-                AND status != 'Cancelled'
             ");
 
-            // Recalculate totals and balance.
-                updateAmount($jo_no, $labor, $trace_no);
-            echo "SUCCESS";
+            if ($a > 0) {
+                echo "noerror";
+            } else {
+                echo "head";
+            }
+
+            break;
+
+            case "receivedJO":
+
+                $jo_no = isset($_POST['jo_no'])
+                    ? (int)$_POST['jo_no']
+                    : 0;
+
+                $userid = isset($_SESSION['userid'])
+                    ? (int)$_SESSION['userid']
+                    : 0;
+
+                $branch = (int)$bid;
+
+                $trace_no = isset($_POST['trace_no'])
+                    ? $con->escapeString($_POST['trace_no'])
+                    : '';
+
+                if ($jo_no <= 0) {
+                    echo "ERROR: Invalid Job Order number.";
+                    break;
+                }
+
+                $con->dbquery("
+                    UPDATE jo_header
+                    SET status = 'Received',
+                        updated_by = '$userid',
+                        updated_on = NOW()
+                    WHERE jo_no = '$jo_no'
+                    AND branch = '$branch'
+                    AND trace_no = '$trace_no'
+                    AND status != 'Cancelled'
+                ");
+
+                // Recalculate totals and balance.
+                    updateAmount($jo_no, $labor, $trace_no);
+                echo "SUCCESS";
 
         break;
 
@@ -725,7 +712,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
 			$results = ["sEcho" => 1,"iTotalRecords" => count($data),"iTotalDisplayRecords" => count($data),"aaData" => $data];
 			echo json_encode($results);	
         break;
-
         
         case "retrieveJOCommentStatuses":
 
@@ -744,8 +730,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             echo json_encode($data);
 
         break;
-
-
        
         case "retrieveJOComments":
 
@@ -841,8 +825,6 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             ));
 
         break;
-        
-
 
         case "saveJOComment":
 
@@ -921,6 +903,194 @@ function updateAmount($jo_no, $labor = null, $trace_no = null) {
             ));
 
         break;
+
+        case "checkJOCompleted":
+            $jo_no = $con->escapeString($_POST['jo_no']);
+            $trace_no = $con->escapeString($_POST['trace_no']);
+            $branch = (int)$_SESSION['branchid'];
+
+            list($status) = $con->getArray("
+                SELECT status
+                FROM jo_header
+                WHERE jo_no = '$jo_no'
+                AND trace_no = '$trace_no'
+                AND branch = '$branch'
+                LIMIT 1
+            ");
+
+            header("Content-Type: application/json");
+            echo json_encode(array(
+                "completed" => ($status == "Completed") ? 1 : 0
+            ));
+        break;
+
+        case "finalized":
+
+            header('Content-Type: application/json; charset=utf-8');
+
+            $jo_no = isset($_POST['jo_no'])
+                ? intval($_POST['jo_no'])
+                : 0;
+
+            $trace_no = isset($_POST['trace_no'])
+                ? $con->escapeString($_POST['trace_no'])
+                : '';
+
+            $branch = (int)$_SESSION['branchid'];
+
+            $userid = isset($_SESSION['userid'])
+                ? (int)$_SESSION['userid']
+                : 0;
+
+            if ($jo_no <= 0 || $trace_no == '') {
+                echo json_encode(array(
+                    'success' => false,
+                    'message' => 'Invalid Job Order or trace number.'
+                ));
+                break;
+            }
+
+            // Retrieve the JO status and remaining balance.
+            $header = $con->getArray("
+                SELECT status, remaining_balance
+                FROM jo_header
+                WHERE jo_no = '$jo_no'
+                  AND branch = '$branch'
+                  AND trace_no = '$trace_no'
+                LIMIT 1
+            ");
+
+            if (!is_array($header) || !isset($header[0])) {
+                echo json_encode(array(
+                    'success' => false,
+                    'message' => 'Job Order not found.'
+                ));
+                break;
+            }
+
+            $status = $header[0];
+            $balance = (float)$header[1];
+
+            // Only JOs with For Release status can be completed.
+            if ($status != 'For Release') {
+                echo json_encode(array(
+                    'success' => false,
+                    'message' => 'The Job Order must be "For Release" before it can be completed.'
+                ));
+                break;
+            }
+
+            // The JO must be fully paid.
+            if ($balance > 0.009) {
+                echo json_encode(array(
+                    'success' => false,
+                    'message' => 'Cannot complete this Job Order. Remaining balance must be zero.'
+                ));
+                break;
+            }
+
+            $con->dbquery("
+                UPDATE jo_header
+                SET status = 'Completed',
+                    updated_by = '$userid',
+                    updated_on = NOW()
+                WHERE jo_no = '$jo_no'
+                  AND branch = '$branch'
+                  AND trace_no = '$trace_no'
+                  AND status = 'For Release'
+                  AND remaining_balance <= 0.009
+            ");
+
+            // Confirm the resulting status.
+            $check = $con->getArray("
+                SELECT status
+                FROM jo_header
+                WHERE jo_no = '$jo_no'
+                  AND branch = '$branch'
+                  AND trace_no = '$trace_no'
+                LIMIT 1
+            ");
+
+            if (isset($check[0]) && $check[0] == 'Completed') {
+                echo json_encode(array(
+                    'success' => true,
+                    'message' => 'Job Order marked as Completed.'
+                ));
+            } else {
+                echo json_encode(array(
+                    'success' => false,
+                    'message' => 'Unable to complete the Job Order. Please verify its status and balance.'
+                ));
+            }
+
+        break;
+
+      
+        case "retrievePaymentHistory":
+
+            header('Content-Type: application/json; charset=utf-8');
+
+            $jo_no = isset($_POST['jo_no']) ? intval($_POST['jo_no']) : 0;
+            $trace_no = isset($_POST['trace_no']) ? $_POST['trace_no'] : '';
+            $branch = isset($bid) ? intval($bid) : 0;
+
+            if ($jo_no <= 0) {
+                echo json_encode(array(
+                    "success" => false,
+                    "message" => "Invalid Job Order number."
+                ));
+                exit;
+            }
+
+            $trace_no = addslashes($trace_no);
+
+            $sql = "
+                SELECT
+                    payment_id,
+                    jo_no,
+                    branch,
+                    trace_no,
+                    amount,
+                    payment_type,
+                    payment_method,
+                    reference_no,
+                    remarks,
+                    received_by,
+                    DATE_FORMAT(date_created, '%b %d, %Y %h:%i %p') AS payment_date
+                FROM jo_payments
+                WHERE jo_no = '$jo_no'
+                AND branch = '$branch'
+                AND trace_no = '$trace_no'
+                ORDER BY date_created DESC, payment_id DESC
+            ";
+
+            $result = _init::getInstance()
+                ->getConnection()
+                ->query($sql);
+
+            if (!$result) {
+                echo json_encode(array(
+                    "success" => false,
+                    "message" => "Unable to retrieve payment history."
+                ));
+                exit;
+            }
+
+            $rows = array();
+
+            while ($row = $result->fetch_assoc()) {
+                $rows[] = $row;
+            }
+
+            echo json_encode(array(
+                "success" => true,
+                "data" => $rows
+            ));
+
+            exit;
+
+        break;
+
 
 
     }
